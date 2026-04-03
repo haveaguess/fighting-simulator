@@ -176,6 +176,7 @@ export class GameApp {
         const winnerIdx = this.players.indexOf(data.winner);
         this.hud.showCenter(`P${winnerIdx + 1} WINS THE MATCH!`);
         this.audio.playWin();
+        if (data.winner?.ragdoll) data.winner.ragdoll.startCelebration();
         setTimeout(() => {
           this.cleanup();
           this.showTitle();
@@ -257,6 +258,14 @@ export class GameApp {
       if (state === 'waveComplete') {
         this.hud.showCenter(`WAVE ${data.wave} CLEARED!`, 2.5);
         this.audio.playWin();
+        for (const p of this.players) {
+          if (p.alive && p.ragdoll) p.ragdoll.startCelebration();
+        }
+        setTimeout(() => {
+          for (const p of this.players) {
+            if (p.ragdoll) p.ragdoll.stopCelebration();
+          }
+        }, 2500);
       }
       if (state === 'gameOver') {
         this.audio.playEliminated();

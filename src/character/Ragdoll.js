@@ -122,6 +122,21 @@ export class Ragdoll {
     game.scene.add(this.healthBarGroup);
     this.meshes._healthBar = this.healthBarGroup;
 
+    // Celebration state
+    this.celebrating = false;
+    this.celebrateTimer = 0;
+
+    // Smile mesh (hidden until celebrating) — a curved line on the face
+    const smileShape = new THREE.Shape();
+    smileShape.absarc(0, 0, 0.1, Math.PI * 0.15, Math.PI * 0.85, false);
+    smileShape.absarc(0, 0, 0.07, Math.PI * 0.85, Math.PI * 0.15, true);
+    const smileGeo = new THREE.ShapeGeometry(smileShape);
+    const smileMat = new THREE.MeshBasicMaterial({ color: 0x111111, side: THREE.DoubleSide });
+    this.smileMesh = new THREE.Mesh(smileGeo, smileMat);
+    this.smileMesh.position.set(0, -0.05, 0.29);
+    this.smileMesh.visible = false;
+    headMesh.add(this.smileMesh);
+
     // Balance
     this.balance = new BalanceSystem(this);
     this._balanceCallback = game.onUpdate((dt) => {
@@ -157,8 +172,19 @@ export class Ragdoll {
     const walk = Math.sin(this.walkPhase);
     const walkAbs = Math.abs(walk);
 
+    // Celebration bounce
+    let celebBounce = 0;
+    if (this.celebrating) {
+      this.celebrateTimer += dt;
+      celebBounce = Math.abs(Math.sin(this.celebrateTimer * 6)) * 0.3;
+      // Small hop via physics
+      if (body.position.y < 0.8 && Math.sin(this.celebrateTimer * 6) > 0.95) {
+        body.velocity.y = 3;
+      }
+    }
+
     // Torso (synced by Game via syncPair, but we add a slight bob)
-    this.meshes.torso.position.set(x, y + Math.abs(walk) * 0.03, z);
+    this.meshes.torso.position.set(x, y + Math.abs(walk) * 0.03 + celebBounce * 0.05, z);
 
     // Face toward nearest enemy
     const allPlayers = this.game._allPlayers || [];
@@ -242,6 +268,23 @@ export class Ragdoll {
       laHandY = armY - 0.05;
     }
 
+    // Celebration override — both arms up, waving
+    if (this.celebrating) {
+      const wave = Math.sin(this.celebrateTimer * 8) * 0.15;
+      // Left arm up
+      laX = x - sideX * 0.35;
+      laZ = z - sideZ * 0.35;
+      laHandX = x - sideX * 0.4 + wave;
+      laHandZ = z - sideZ * 0.4;
+      laHandY = armY + 0.6 + Math.abs(wave);
+      // Right arm up
+      raX = x + sideX * 0.35;
+      raZ = z + sideZ * 0.35;
+      raHandX = x + sideX * 0.4 - wave;
+      raHandZ = z + sideZ * 0.4;
+      raHandY = armY + 0.6 + Math.abs(wave);
+    }
+
     // Right arm (right side)
     let raX = x + sideX * 0.38;
     let raZ = z + sideZ * 0.38;
@@ -261,8 +304,8 @@ export class Ragdoll {
       raHandY = armY - 0.1;
     }
 
-    this.meshes.leftUpperArm.position.set(laX, armY, laZ);
-    this.meshes.rightUpperArm.position.set(raX, armY, raZ);
+    this.meshes.leftUpperArm.position.set(laX, this.celebrating ? armY + 0.35 : armY, laZ);
+    this.meshes.rightUpperArm.position.set(raX, this.celebrating ? armY + 0.35 : armY, raZ);
     this.meshes.leftLowerArm.position.set(laHandX, laHandY, laHandZ);
     this.meshes.rightLowerArm.position.set(raHandX, raHandY, raHandZ);
 
@@ -326,6 +369,17 @@ export class Ragdoll {
   triggerPunch() { this.punchTimer = 0.3; }
   triggerKick() { this.kickTimer = 0.3; }
   triggerHeadbutt() { this.headbuttTimer = 0.3; }
+
+  startCelebration() {
+    this.celebrating = true;
+    this.celebrateTimer = 0;
+    this.smileMesh.visible = true;
+  }
+
+  stopCelebration() {
+    this.celebrating = false;
+    this.smileMesh.visible = false;
+  }
 
   getTorso() {
     return this.bodies.torso;

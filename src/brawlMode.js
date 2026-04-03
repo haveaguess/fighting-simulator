@@ -84,7 +84,9 @@ export function startBrawlMode() {
       audio.playWin();
       audio.stopMusic();
       audio.stopDishWhir();
-      setTimeout(() => location.reload(), 4000);
+      // Winner celebrates!
+      if (data.winner?.ragdoll) data.winner.ragdoll.startCelebration();
+      setTimeout(() => location.reload(), 5000);
     }
   };
   match.startMatch();

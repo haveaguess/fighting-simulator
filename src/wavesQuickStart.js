@@ -96,6 +96,16 @@ export function startWavesQuick() {
     if (state === 'waveComplete') {
       hud.showCenter(`WAVE ${data.wave} CLEARED!`, 2.5);
       audio.playWin();
+      // Surviving humans celebrate
+      for (const p of players) {
+        if (p.alive && p.ragdoll) p.ragdoll.startCelebration();
+      }
+      // Stop celebrating before next wave
+      setTimeout(() => {
+        for (const p of players) {
+          if (p.ragdoll) p.ragdoll.stopCelebration();
+        }
+      }, 2500);
     }
     if (state === 'gameOver') {
       audio.playEliminated();
