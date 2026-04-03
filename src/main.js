@@ -1,10 +1,11 @@
 import { Game } from './core/Game.js';
+import { Ragdoll } from './character/Ragdoll.js';
 import * as THREE from 'three';
 import * as CANNON from 'cannon-es';
 
 const game = new Game();
 
-// Test ground
+// Ground
 const groundBody = new CANNON.Body({
   type: CANNON.Body.STATIC,
   shape: new CANNON.Box(new CANNON.Vec3(10, 0.5, 10)),
@@ -20,20 +21,7 @@ groundMesh.receiveShadow = true;
 game.scene.add(groundMesh);
 game.addSyncPair(groundBody, groundMesh);
 
-// Test sphere
-const sphereBody = new CANNON.Body({
-  mass: 1,
-  shape: new CANNON.Sphere(0.5),
-  position: new CANNON.Vec3(0, 5, 0),
-});
-game.world.addBody(sphereBody);
-
-const sphereMesh = new THREE.Mesh(
-  new THREE.SphereGeometry(0.5),
-  new THREE.MeshStandardMaterial({ color: 0xff0000 })
-);
-sphereMesh.castShadow = true;
-game.scene.add(sphereMesh);
-game.addSyncPair(sphereBody, sphereMesh);
+// Spawn ragdoll
+const ragdoll = new Ragdoll(game, { x: 0, y: 5, z: 0 }, 0xff4444);
 
 game.start();
