@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import * as CANNON from 'cannon-es';
+import { BalanceSystem } from './BalanceSystem.js';
 
 export class Ragdoll {
   constructor(game, position, color) {
@@ -207,6 +208,9 @@ export class Ragdoll {
     rightKneeConstraint.setMotorMaxForce(0);
     game.world.addConstraint(rightKneeConstraint);
     this.constraints.push(rightKneeConstraint);
+
+    this.balance = new BalanceSystem(this);
+    game.onUpdate((dt) => this.balance.update(dt));
   }
 
   getTorso() {
