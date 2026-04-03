@@ -53,7 +53,7 @@ export class WavesManager {
 
     for (let i = 0; i < count; i++) {
       const color = ENEMY_COLORS[i % ENEMY_COLORS.length];
-      const ai = new AIPlayer(this.game, this.allEntities, spawnPoints[i], color);
+      const ai = new AIPlayer(this.game, this.allEntities, spawnPoints[i], color, this.audio);
       ai.isAI = true;
       const costume = COSTUME_KEYS[Math.floor(Math.random() * COSTUME_KEYS.length)];
       ai.costumeKey = costume;

@@ -120,7 +120,7 @@ export class GameApp {
     // Human players
     for (const idx of joinedArray) {
       const color = PLAYER_COLORS[this.players.length];
-      const p = new Player(this.game, this.input, idx, spawnPoints[this.players.length], color);
+      const p = new Player(this.game, this.input, idx, spawnPoints[this.players.length], color, this.audio);
       const costumeKey = costumeChoices[humanIndex] || COSTUME_KEYS[0];
       p.costumeKey = costumeKey;
       p.damageSystem = this.damageSystem;
@@ -133,7 +133,7 @@ export class GameApp {
     // Fill with AI
     while (this.players.length < totalPlayers) {
       const color = PLAYER_COLORS[this.players.length];
-      const ai = new AIPlayer(this.game, this.players, spawnPoints[this.players.length], color);
+      const ai = new AIPlayer(this.game, this.players, spawnPoints[this.players.length], color, this.audio);
       ai.isAI = true;
       const randomCostume = COSTUME_KEYS[Math.floor(Math.random() * COSTUME_KEYS.length)];
       ai.costumeKey = randomCostume;
@@ -164,6 +164,8 @@ export class GameApp {
       if (state === 'playing') {
         this.hud.showCenter('FIGHT!', 1.5);
         this.audio.playFight();
+        this.audio.startMusic();
+        this.audio.startDishWhir();
       }
       if (state === 'roundEnd') {
         const winnerIdx = this.players.indexOf(data.winner);
@@ -205,7 +207,7 @@ export class GameApp {
 
     for (const idx of joinedArray) {
       const color = PLAYER_COLORS[this.players.length];
-      const p = new Player(this.game, this.input, idx, spawnPoints[this.players.length], color);
+      const p = new Player(this.game, this.input, idx, spawnPoints[this.players.length], color, this.audio);
       const costumeKey = costumeChoices[humanIndex] || COSTUME_KEYS[0];
       p.costumeKey = costumeKey;
       p.damageSystem = this.damageSystem;
@@ -242,6 +244,8 @@ export class GameApp {
       if (state === 'fight') {
         this.hud.showCenter('FIGHT!', 1.5);
         this.audio.playFight();
+        this.audio.startMusic();
+        this.audio.startDishWhir();
       }
       if (state === 'waveComplete') {
         this.hud.showCenter(`WAVE ${data.wave} CLEARED!`, 2.5);
@@ -304,6 +308,9 @@ export class GameApp {
       }
       this.wavesManager = null;
     }
+
+    this.audio.stopMusic();
+    this.audio.stopDishWhir();
 
     for (const p of this.players) p.destroy();
     this.players = [];

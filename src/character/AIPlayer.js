@@ -4,7 +4,7 @@ import { AIController as AI } from '../ai/AIController.js';
 import { applyCostume } from './Costumes.js';
 
 export class AIPlayer {
-  constructor(game, allPlayers, position, color) {
+  constructor(game, allPlayers, position, color, audio) {
     this.game = game;
     this.allPlayers = allPlayers;
     this.alive = true;
@@ -12,9 +12,10 @@ export class AIPlayer {
     this.isAI = true;
     this.color = color;
     this.costumeKey = null;
+    this.audio = audio;
 
     this.ragdoll = new Ragdoll(game, position, color);
-    this.controller = new CharacterController(this.ragdoll, game);
+    this.controller = new CharacterController(this.ragdoll, game, audio);
     this.ai = new AI();
 
     this._updateCallback = game.onUpdate((dt) => this.update(dt));
@@ -33,7 +34,7 @@ export class AIPlayer {
   reset(position) {
     this.ragdoll.destroy();
     this.ragdoll = new Ragdoll(this.game, position, this.color);
-    this.controller = new CharacterController(this.ragdoll, this.game);
+    this.controller = new CharacterController(this.ragdoll, this.game, this.audio);
     if (this.costumeKey) applyCostume(this.ragdoll, this.costumeKey);
     if (this.damageSystem) this.damageSystem.register(this.ragdoll);
     this.alive = true;

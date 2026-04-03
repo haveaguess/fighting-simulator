@@ -3,7 +3,7 @@ import { CharacterController } from './CharacterController.js';
 import { applyCostume } from './Costumes.js';
 
 export class Player {
-  constructor(game, inputManager, playerIndex, position, color) {
+  constructor(game, inputManager, playerIndex, position, color, audio) {
     this.game = game;
     this.inputManager = inputManager;
     this.playerIndex = playerIndex;
@@ -11,9 +11,10 @@ export class Player {
     this.roundWins = 0;
     this.color = color;
     this.costumeKey = null;
+    this.audio = audio;
 
     this.ragdoll = new Ragdoll(game, position, color);
-    this.controller = new CharacterController(this.ragdoll, game);
+    this.controller = new CharacterController(this.ragdoll, game, audio);
 
     this._updateCallback = game.onUpdate((dt) => this.update(dt));
   }
@@ -26,13 +27,14 @@ export class Player {
     // Check ring-out
     if (this.ragdoll.getPosition().y < -10) {
       this.alive = false;
+      if (this.audio) this.audio.playEliminated();
     }
   }
 
   reset(position) {
     this.ragdoll.destroy();
     this.ragdoll = new Ragdoll(this.game, position, this.color);
-    this.controller = new CharacterController(this.ragdoll, this.game);
+    this.controller = new CharacterController(this.ragdoll, this.game, this.audio);
     if (this.costumeKey) applyCostume(this.ragdoll, this.costumeKey);
     if (this.damageSystem) this.damageSystem.register(this.ragdoll);
     this.alive = true;

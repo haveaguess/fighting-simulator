@@ -2,9 +2,10 @@ import * as CANNON from 'cannon-es';
 import { Actions } from '../input/InputManager.js';
 
 export class CharacterController {
-  constructor(ragdoll, game) {
+  constructor(ragdoll, game, audio) {
     this.ragdoll = ragdoll;
     this.game = game;
+    this.audio = audio;
 
     this.punchCooldown = 0;
     this.kickCooldown = 0;
@@ -43,6 +44,7 @@ export class CharacterController {
         // Initial jump impulse
         torso.applyImpulse(new CANNON.Vec3(0, this.jumpImpulse, 0));
         this.jumpedThisPress = true;
+        if (this.audio) this.audio.playJump();
         this.jumpHoldTimer = 0;
       }
       // Continue applying upward force while held (up to max time)
@@ -63,6 +65,7 @@ export class CharacterController {
     if (actions[Actions.PUNCH] && this.punchCooldown <= 0) {
       this.punchCooldown = 0.4;
       this.ragdoll.triggerPunch();
+      if (this.audio) this.audio.playPunch();
       this._hitNearby(this.punchImpulse, 3);
     }
 
@@ -71,6 +74,7 @@ export class CharacterController {
     if (actions[Actions.KICK] && this.kickCooldown <= 0) {
       this.kickCooldown = 0.5;
       this.ragdoll.triggerKick();
+      if (this.audio) this.audio.playKick();
       this._hitNearby(this.kickImpulse, 2);
     }
 
@@ -79,6 +83,7 @@ export class CharacterController {
     if (actions[Actions.HEADBUTT] && this.headbuttCooldown <= 0) {
       this.headbuttCooldown = 0.6;
       this.ragdoll.triggerHeadbutt();
+      if (this.audio) this.audio.playHeadbutt();
       this._hitNearby(this.headbuttImpulse, 4);
     }
 
@@ -123,6 +128,7 @@ export class CharacterController {
         ));
 
         p.ragdoll.balance.takeDamage(damageAmount);
+        if (this.audio) this.audio.playHit();
       }
     }
   }
