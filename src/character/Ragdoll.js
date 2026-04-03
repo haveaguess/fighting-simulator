@@ -76,6 +76,7 @@ export class Ragdoll {
 
     // Facing direction (smoothed)
     this.facingAngle = 0;
+    this.grabTarget = null; // set by controller when grabbing
 
     // Arms
     const armMat = mat.clone();
@@ -188,15 +189,33 @@ export class Ragdoll {
     const armY = y + 0.15;
 
     // Side direction (perpendicular to facing)
-    const sideX = cos;  // perpendicular to facing
+    const sideX = cos;
     const sideZ = -sin;
 
-    // Left arm (left side of character)
+    // Left arm (left side of character) — extends to grab target when holding
     let laX = x - sideX * 0.38;
     let laZ = z - sideZ * 0.38;
     let laHandX = laX;
     let laHandZ = laZ;
     let laHandY = armY - 0.3;
+
+    if (this.grabTarget) {
+      // Extend left arm toward grabbed enemy
+      const gx = this.grabTarget.x;
+      const gz = this.grabTarget.z;
+      const gdx = gx - x;
+      const gdz = gz - z;
+      const gLen = Math.sqrt(gdx * gdx + gdz * gdz);
+      if (gLen > 0.01) {
+        const gnx = gdx / gLen;
+        const gnz = gdz / gLen;
+        laX = x + gnx * 0.3;
+        laZ = z + gnz * 0.3;
+        laHandX = x + gnx * 0.55;
+        laHandZ = z + gnz * 0.55;
+        laHandY = armY - 0.05;
+      }
+    }
 
     // Right arm (right side)
     let raX = x + sideX * 0.38;
