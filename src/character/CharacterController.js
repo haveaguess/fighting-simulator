@@ -19,10 +19,10 @@ export class CharacterController {
     this.jumpHoldMax = 0.2;     // max seconds of hold boost
     this.jumpHoldTimer = 0;
     this.jumpedThisPress = false;
-    this.punchImpulse = 20;
-    this.kickImpulse = 18;
-    this.headbuttImpulse = 15;
-    this.attackRange = 1.5;
+    this.punchImpulse = 30;
+    this.kickImpulse = 25;
+    this.headbuttImpulse = 35;
+    this.attackRange = 0.9;
   }
 
   update(dt, actions) {
@@ -66,7 +66,7 @@ export class CharacterController {
       this.punchCooldown = 0.4;
       this.ragdoll.triggerPunch();
       if (this.audio) this.audio.playPunch();
-      this._hitNearby(this.punchImpulse, 3);
+      this._hitNearby(this.punchImpulse, 20);
     }
 
     // Kick
@@ -75,7 +75,7 @@ export class CharacterController {
       this.kickCooldown = 0.5;
       this.ragdoll.triggerKick();
       if (this.audio) this.audio.playKick();
-      this._hitNearby(this.kickImpulse, 2);
+      this._hitNearby(this.kickImpulse, 15);
     }
 
     // Headbutt
@@ -84,7 +84,7 @@ export class CharacterController {
       this.headbuttCooldown = 0.6;
       this.ragdoll.triggerHeadbutt();
       if (this.audio) this.audio.playHeadbutt();
-      this._hitNearby(this.headbuttImpulse, 4);
+      this._hitNearby(this.headbuttImpulse, 25);
     }
 
     // Grab
@@ -121,10 +121,13 @@ export class CharacterController {
         if (knockDir.length() > 0.01) knockDir.normalize();
         else knockDir.set(1, 0.3, 0); // default direction if overlapping
 
+        // More damage = bigger knockback (like Smash Bros)
+        const knockMult = p.ragdoll.balance.getKnockbackMultiplier();
+        const totalImpulse = impulse * knockMult;
         theirBody.applyImpulse(new CANNON.Vec3(
-          knockDir.x * impulse,
-          knockDir.y * impulse,
-          knockDir.z * impulse
+          knockDir.x * totalImpulse,
+          knockDir.y * totalImpulse,
+          knockDir.z * totalImpulse
         ));
 
         p.ragdoll.balance.takeDamage(damageAmount);

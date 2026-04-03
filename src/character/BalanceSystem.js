@@ -3,7 +3,7 @@ export class BalanceSystem {
     this.ragdoll = ragdoll;
     this.damage = 0;
     this.ragdollTimer = 0;
-    this.ragdollDuration = 3;
+    this.ragdollDuration = 2;
   }
 
   takeDamage(amount) {
@@ -11,6 +11,11 @@ export class BalanceSystem {
     if (this.damage >= 80) {
       this.ragdollTimer = this.ragdollDuration;
     }
+  }
+
+  // Higher damage = more knockback multiplier (like Smash Bros)
+  getKnockbackMultiplier() {
+    return 1 + (this.damage / 50);  // 1x at 0%, 3x at 100%
   }
 
   getDamagePercent() {
@@ -26,13 +31,13 @@ export class BalanceSystem {
       this.ragdollTimer -= dt;
       if (this.ragdollTimer <= 0) {
         this.ragdollTimer = 0;
-        this.damage = Math.max(0, this.damage - 30);
+        this.damage = Math.max(0, this.damage - 10); // small recovery after ragdoll
       }
     }
 
-    // Gradually recover damage over time
+    // Slow recovery over time
     if (this.damage > 0 && this.ragdollTimer <= 0) {
-      this.damage = Math.max(0, this.damage - dt * 2);
+      this.damage = Math.max(0, this.damage - dt * 1);
     }
   }
 }
