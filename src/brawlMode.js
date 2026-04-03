@@ -8,6 +8,7 @@ import { CameraController } from './core/CameraController.js';
 import { AudioManager } from './audio/AudioManager.js';
 import { HUD } from './ui/HUD.js';
 import { MatchManager } from './core/MatchManager.js';
+import { PauseMenu } from './core/PauseMenu.js';
 import { applyCostume } from './character/Costumes.js';
 import { Rooftop } from './arenas/Rooftop.js';
 
@@ -18,6 +19,9 @@ export function startBrawlMode() {
 
   input.registerKeyboardPlayer(0, PLAYER_1_KEYS);
   input.registerKeyboardPlayer(1, PLAYER_2_KEYS);
+
+  // Pause menu with settings access
+  const pause = new PauseMenu(game, input);
 
   // Load rooftop arena
   const arena = new Rooftop(game);
@@ -36,7 +40,6 @@ export function startBrawlMode() {
   game._allPlayers = players;
 
   // HUD
-  const ui = document.getElementById('ui-overlay');
   const hud = new HUD(players);
   game.onUpdate(() => hud.update());
 
@@ -73,18 +76,34 @@ export function startBrawlMode() {
   };
   match.startMatch();
 
-  // Controls reminder
-  const helpDiv = document.createElement('div');
-  helpDiv.style.cssText = `
+  // Persistent controls display
+  const controlsDiv = document.createElement('div');
+  controlsDiv.style.cssText = `
     position: fixed; bottom: 10px; left: 50%; transform: translateX(-50%);
-    background: rgba(0,0,0,0.7); color: #ccc;
-    font-family: monospace; font-size: 12px;
-    padding: 8px 16px; border-radius: 8px;
+    background: rgba(0,0,0,0.75); color: #ddd;
+    font-family: 'Arial', sans-serif; font-size: 13px;
+    padding: 10px 20px; border-radius: 10px;
     z-index: 1000; pointer-events: none; text-align: center;
+    line-height: 1.6;
   `;
-  helpDiv.innerHTML = 'P1: WASD + Space/F/G/R/T &nbsp;&nbsp;&nbsp; P2: Arrows + / . , M ;';
-  document.body.appendChild(helpDiv);
-  setTimeout(() => helpDiv.remove(), 8000);
+  controlsDiv.innerHTML = `
+    <div style="display:flex; gap: 40px; justify-content: center;">
+      <div>
+        <div style="color: #4f4; font-weight: bold; margin-bottom: 4px;">Player 1</div>
+        <div>Move: <b>WASD</b></div>
+        <div>Jump: <b>Space</b> &nbsp; Punch: <b>F</b> &nbsp; Kick: <b>G</b></div>
+        <div>Headbutt: <b>T</b> &nbsp; Grab: <b>R</b></div>
+      </div>
+      <div>
+        <div style="color: #f44; font-weight: bold; margin-bottom: 4px;">Player 2</div>
+        <div>Move: <b>Arrows</b></div>
+        <div>Jump: <b>/</b> &nbsp; Punch: <b>.</b> &nbsp; Kick: <b>,</b></div>
+        <div>Headbutt: <b>;</b> &nbsp; Grab: <b>M</b></div>
+      </div>
+    </div>
+    <div style="margin-top: 6px; color: #888; font-size: 11px;">ESC to pause &amp; change controls</div>
+  `;
+  document.body.appendChild(controlsDiv);
 
   game.start();
 }
