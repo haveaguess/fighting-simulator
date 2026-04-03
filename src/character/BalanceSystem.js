@@ -3,9 +3,9 @@ import * as CANNON from 'cannon-es';
 export class BalanceSystem {
   constructor(ragdoll) {
     this.ragdoll = ragdoll;
-    this.damage = 0;          // 0 to 100
-    this.ragdollTimer = 0;    // seconds remaining in full ragdoll
-    this.ragdollDuration = 3; // seconds of full ragdoll at max damage
+    this.damage = 0;
+    this.ragdollTimer = 0;
+    this.ragdollDuration = 3;
   }
 
   takeDamage(amount) {
@@ -34,53 +34,44 @@ export class BalanceSystem {
     }
 
     const torso = this.ragdoll.getTorso();
+    if (!torso) return;
+
     const damageMultiplier = 1 - (this.damage / 100) * 0.8;
 
-    // --- FORCE UPRIGHT ---
-    // Directly set the torso quaternion toward upright, preserving only yaw
-    const currentQuat = torso.quaternion;
-
-    // Extract yaw from current orientation
+    // --- FORCE UPRIGHT QUATERNION ---
+    // Extract current yaw only, discard pitch and roll entirely
     const forward = new CANNON.Vec3(0, 0, 1);
-    currentQuat.vmult(forward, forward);
+    torso.quaternion.vmult(forward, forward);
     forward.y = 0;
-    if (forward.length() > 0.01) {
-      forward.normalize();
-    } else {
-      forward.set(0, 0, 1);
-    }
+    if (forward.lengthSquared() < 0.001) forward.set(0, 0, 1);
+    forward.normalize();
     const yaw = Math.atan2(forward.x, forward.z);
 
-    // Target: standing upright, facing current yaw
+    // Directly set quaternion to upright with current yaw
+    // At 0 damage: fully forced upright
+    // At high damage: partially forced (wobbly)
     const targetQuat = new CANNON.Quaternion();
     targetQuat.setFromAxisAngle(new CANNON.Vec3(0, 1, 0), yaw);
 
-    // Aggressive slerp — basically snap upright
-    const slerpStrength = Math.min(0.4 * damageMultiplier, 1);
-    currentQuat.slerp(targetQuat, slerpStrength, currentQuat);
+    // Blend: at 0 damage, 100% forced upright. At 100 damage, only 20% forced.
+    const strength = damageMultiplier;
+    torso.quaternion.x = torso.quaternion.x * (1 - strength) + targetQuat.x * strength;
+    torso.quaternion.y = torso.quaternion.y * (1 - strength) + targetQuat.y * strength;
+    torso.quaternion.z = torso.quaternion.z * (1 - strength) + targetQuat.z * strength;
+    torso.quaternion.w = torso.quaternion.w * (1 - strength) + targetQuat.w * strength;
+    torso.quaternion.normalize();
 
-    // --- KILL TUMBLE ---
-    // Heavily damp pitch and roll angular velocity
-    torso.angularVelocity.x *= 0.8;
-    torso.angularVelocity.z *= 0.8;
+    // Kill pitch/roll angular velocity completely
+    torso.angularVelocity.x *= 0.5;
+    torso.angularVelocity.z *= 0.5;
 
-    // --- STAND UP FORCE ---
-    // Check how upright we are
-    const currentUp = new CANNON.Vec3(0, 1, 0);
-    currentQuat.vmult(currentUp, currentUp);
-    const uprightness = currentUp.y;
-
-    // If not upright, apply strong upward force to get off the ground
-    if (uprightness < 0.9) {
-      const liftForce = (1 - uprightness) * 150 * damageMultiplier;
-      torso.applyForce(new CANNON.Vec3(0, liftForce, 0));
+    // --- MINIMUM HEIGHT ---
+    // Ensure torso doesn't sink below standing height
+    // The torso center should be about 0.75 above the ground (y=0)
+    const minY = 0.75;
+    if (torso.position.y < minY) {
+      torso.position.y = minY;
+      if (torso.velocity.y < 0) torso.velocity.y = 0;
     }
-
-    // --- KEEP FEET DOWN ---
-    // Push legs downward to encourage standing pose
-    const leftLeg = this.ragdoll.bodies.leftLowerLeg;
-    const rightLeg = this.ragdoll.bodies.rightLowerLeg;
-    if (leftLeg) leftLeg.applyForce(new CANNON.Vec3(0, -8 * damageMultiplier, 0));
-    if (rightLeg) rightLeg.applyForce(new CANNON.Vec3(0, -8 * damageMultiplier, 0));
   }
 }
