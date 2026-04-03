@@ -9,7 +9,7 @@ export class Ragdoll {
     this.meshes = {};
     this.constraints = [];
 
-    const mat = new THREE.MeshStandardMaterial({ color });
+    const mat = new THREE.MeshStandardMaterial({ color, roughness: 0.7 });
     const px = position.x;
     const py = position.y;
     const pz = position.z;
@@ -31,25 +31,24 @@ export class Ragdoll {
       return body;
     };
 
-    // --- Torso (core) ---
-    const torsoHW = [0.4, 0.6, 0.25]; // half-extents
+    // --- Torso (chunky pill shape like Gang Beasts) ---
     createPart('torso',
-      new CANNON.Box(new CANNON.Vec3(...torsoHW)),
-      new THREE.BoxGeometry(0.8, 1.2, 0.5),
+      new CANNON.Box(new CANNON.Vec3(0.35, 0.5, 0.25)),
+      new THREE.CapsuleGeometry(0.35, 0.5, 8, 16), // radius 0.35, length 0.5
       5, px, py, pz
     );
 
-    // --- Head ---
+    // --- Head (big round sphere — Gang Beasts signature) ---
     createPart('head',
-      new CANNON.Sphere(0.3),
-      new THREE.SphereGeometry(0.3, 16, 16),
-      1, px, py + 0.9, pz
+      new CANNON.Sphere(0.32),
+      new THREE.SphereGeometry(0.32, 16, 16),
+      1, px, py + 0.85, pz
     );
 
-    // Neck constraint — ConeTwist, PI/6 swing
+    // Neck constraint
     const neckConstraint = new CANNON.ConeTwistConstraint(this.bodies.torso, this.bodies.head, {
-      pivotA: new CANNON.Vec3(0, 0.6, 0),
-      pivotB: new CANNON.Vec3(0, -0.3, 0),
+      pivotA: new CANNON.Vec3(0, 0.5, 0),
+      pivotB: new CANNON.Vec3(0, -0.32, 0),
       axisA: new CANNON.Vec3(0, 1, 0),
       axisB: new CANNON.Vec3(0, 1, 0),
       angle: Math.PI / 6,
@@ -58,19 +57,17 @@ export class Ragdoll {
     game.world.addConstraint(neckConstraint);
     this.constraints.push(neckConstraint);
 
-    // --- Upper Arms ---
-    const upperArmHW = [0.12, 0.3, 0.12];
-    const upperArmGeo = new THREE.BoxGeometry(0.24, 0.6, 0.24);
-
+    // --- Upper Arms (stubby tubes) ---
     // Left upper arm
     createPart('leftUpperArm',
-      new CANNON.Box(new CANNON.Vec3(...upperArmHW)),
-      upperArmGeo, 1, px - 0.52, py + 0.3, pz
+      new CANNON.Cylinder(0.1, 0.1, 0.5, 8),
+      new THREE.CapsuleGeometry(0.1, 0.3, 4, 8),
+      1, px - 0.5, py + 0.25, pz
     );
 
     const leftShoulderConstraint = new CANNON.ConeTwistConstraint(this.bodies.torso, this.bodies.leftUpperArm, {
-      pivotA: new CANNON.Vec3(-0.4, 0.6, 0),
-      pivotB: new CANNON.Vec3(0, 0.3, 0),
+      pivotA: new CANNON.Vec3(-0.35, 0.4, 0),
+      pivotB: new CANNON.Vec3(0, 0.25, 0),
       axisA: new CANNON.Vec3(-1, 0, 0),
       axisB: new CANNON.Vec3(0, 1, 0),
       angle: Math.PI / 3,
@@ -81,13 +78,14 @@ export class Ragdoll {
 
     // Right upper arm
     createPart('rightUpperArm',
-      new CANNON.Box(new CANNON.Vec3(...upperArmHW)),
-      upperArmGeo, 1, px + 0.52, py + 0.3, pz
+      new CANNON.Cylinder(0.1, 0.1, 0.5, 8),
+      new THREE.CapsuleGeometry(0.1, 0.3, 4, 8),
+      1, px + 0.5, py + 0.25, pz
     );
 
     const rightShoulderConstraint = new CANNON.ConeTwistConstraint(this.bodies.torso, this.bodies.rightUpperArm, {
-      pivotA: new CANNON.Vec3(0.4, 0.6, 0),
-      pivotB: new CANNON.Vec3(0, 0.3, 0),
+      pivotA: new CANNON.Vec3(0.35, 0.4, 0),
+      pivotB: new CANNON.Vec3(0, 0.25, 0),
       axisA: new CANNON.Vec3(1, 0, 0),
       axisB: new CANNON.Vec3(0, 1, 0),
       angle: Math.PI / 3,
@@ -96,38 +94,34 @@ export class Ragdoll {
     game.world.addConstraint(rightShoulderConstraint);
     this.constraints.push(rightShoulderConstraint);
 
-    // --- Lower Arms ---
-    const lowerArmHW = [0.1, 0.28, 0.1];
-    const lowerArmGeo = new THREE.BoxGeometry(0.2, 0.56, 0.2);
-
+    // --- Lower Arms (stubby tubes with round fist ends) ---
     // Left lower arm
     createPart('leftLowerArm',
-      new CANNON.Box(new CANNON.Vec3(...lowerArmHW)),
-      lowerArmGeo, 0.8, px - 0.52, py - 0.3, pz
+      new CANNON.Sphere(0.12),
+      new THREE.CapsuleGeometry(0.1, 0.25, 4, 8),
+      0.8, px - 0.5, py - 0.15, pz
     );
 
     const leftElbowConstraint = new CANNON.HingeConstraint(this.bodies.leftUpperArm, this.bodies.leftLowerArm, {
-      pivotA: new CANNON.Vec3(0, -0.3, 0),
-      pivotB: new CANNON.Vec3(0, 0.28, 0),
+      pivotA: new CANNON.Vec3(0, -0.25, 0),
+      pivotB: new CANNON.Vec3(0, 0.2, 0),
       axisA: new CANNON.Vec3(1, 0, 0),
       axisB: new CANNON.Vec3(1, 0, 0),
     });
     leftElbowConstraint.setMotorMaxForce(0);
     game.world.addConstraint(leftElbowConstraint);
     this.constraints.push(leftElbowConstraint);
-    // Elbow range: 0 to PI*0.7
-    leftElbowConstraint.equations[0].minForce = -1e6;
-    leftElbowConstraint.equations[0].maxForce = 1e6;
 
     // Right lower arm
     createPart('rightLowerArm',
-      new CANNON.Box(new CANNON.Vec3(...lowerArmHW)),
-      lowerArmGeo, 0.8, px + 0.52, py - 0.3, pz
+      new CANNON.Sphere(0.12),
+      new THREE.CapsuleGeometry(0.1, 0.25, 4, 8),
+      0.8, px + 0.5, py - 0.15, pz
     );
 
     const rightElbowConstraint = new CANNON.HingeConstraint(this.bodies.rightUpperArm, this.bodies.rightLowerArm, {
-      pivotA: new CANNON.Vec3(0, -0.3, 0),
-      pivotB: new CANNON.Vec3(0, 0.28, 0),
+      pivotA: new CANNON.Vec3(0, -0.25, 0),
+      pivotB: new CANNON.Vec3(0, 0.2, 0),
       axisA: new CANNON.Vec3(1, 0, 0),
       axisB: new CANNON.Vec3(1, 0, 0),
     });
@@ -135,19 +129,17 @@ export class Ragdoll {
     game.world.addConstraint(rightElbowConstraint);
     this.constraints.push(rightElbowConstraint);
 
-    // --- Upper Legs ---
-    const upperLegHW = [0.14, 0.3, 0.14];
-    const upperLegGeo = new THREE.BoxGeometry(0.28, 0.6, 0.28);
-
+    // --- Upper Legs (chunky tubes) ---
     // Left upper leg
     createPart('leftUpperLeg',
-      new CANNON.Box(new CANNON.Vec3(...upperLegHW)),
-      upperLegGeo, 1.5, px - 0.2, py - 0.9, pz
+      new CANNON.Cylinder(0.12, 0.12, 0.5, 8),
+      new THREE.CapsuleGeometry(0.12, 0.3, 4, 8),
+      1.5, px - 0.18, py - 0.8, pz
     );
 
     const leftHipConstraint = new CANNON.ConeTwistConstraint(this.bodies.torso, this.bodies.leftUpperLeg, {
-      pivotA: new CANNON.Vec3(-0.2, -0.6, 0),
-      pivotB: new CANNON.Vec3(0, 0.3, 0),
+      pivotA: new CANNON.Vec3(-0.18, -0.5, 0),
+      pivotB: new CANNON.Vec3(0, 0.25, 0),
       axisA: new CANNON.Vec3(0, -1, 0),
       axisB: new CANNON.Vec3(0, -1, 0),
       angle: Math.PI / 4,
@@ -158,13 +150,14 @@ export class Ragdoll {
 
     // Right upper leg
     createPart('rightUpperLeg',
-      new CANNON.Box(new CANNON.Vec3(...upperLegHW)),
-      upperLegGeo, 1.5, px + 0.2, py - 0.9, pz
+      new CANNON.Cylinder(0.12, 0.12, 0.5, 8),
+      new THREE.CapsuleGeometry(0.12, 0.3, 4, 8),
+      1.5, px + 0.18, py - 0.8, pz
     );
 
     const rightHipConstraint = new CANNON.ConeTwistConstraint(this.bodies.torso, this.bodies.rightUpperLeg, {
-      pivotA: new CANNON.Vec3(0.2, -0.6, 0),
-      pivotB: new CANNON.Vec3(0, 0.3, 0),
+      pivotA: new CANNON.Vec3(0.18, -0.5, 0),
+      pivotB: new CANNON.Vec3(0, 0.25, 0),
       axisA: new CANNON.Vec3(0, -1, 0),
       axisB: new CANNON.Vec3(0, -1, 0),
       angle: Math.PI / 4,
@@ -173,19 +166,17 @@ export class Ragdoll {
     game.world.addConstraint(rightHipConstraint);
     this.constraints.push(rightHipConstraint);
 
-    // --- Lower Legs ---
-    const lowerLegHW = [0.12, 0.3, 0.12];
-    const lowerLegGeo = new THREE.BoxGeometry(0.24, 0.6, 0.24);
-
+    // --- Lower Legs (stubby tubes with round feet) ---
     // Left lower leg
     createPart('leftLowerLeg',
-      new CANNON.Box(new CANNON.Vec3(...lowerLegHW)),
-      lowerLegGeo, 1, px - 0.2, py - 1.5, pz
+      new CANNON.Sphere(0.13),
+      new THREE.CapsuleGeometry(0.11, 0.25, 4, 8),
+      1, px - 0.18, py - 1.35, pz
     );
 
     const leftKneeConstraint = new CANNON.HingeConstraint(this.bodies.leftUpperLeg, this.bodies.leftLowerLeg, {
-      pivotA: new CANNON.Vec3(0, -0.3, 0),
-      pivotB: new CANNON.Vec3(0, 0.3, 0),
+      pivotA: new CANNON.Vec3(0, -0.25, 0),
+      pivotB: new CANNON.Vec3(0, 0.2, 0),
       axisA: new CANNON.Vec3(1, 0, 0),
       axisB: new CANNON.Vec3(1, 0, 0),
     });
@@ -195,13 +186,14 @@ export class Ragdoll {
 
     // Right lower leg
     createPart('rightLowerLeg',
-      new CANNON.Box(new CANNON.Vec3(...lowerLegHW)),
-      lowerLegGeo, 1, px + 0.2, py - 1.5, pz
+      new CANNON.Sphere(0.13),
+      new THREE.CapsuleGeometry(0.11, 0.25, 4, 8),
+      1, px + 0.18, py - 1.35, pz
     );
 
     const rightKneeConstraint = new CANNON.HingeConstraint(this.bodies.rightUpperLeg, this.bodies.rightLowerLeg, {
-      pivotA: new CANNON.Vec3(0, -0.3, 0),
-      pivotB: new CANNON.Vec3(0, 0.3, 0),
+      pivotA: new CANNON.Vec3(0, -0.25, 0),
+      pivotB: new CANNON.Vec3(0, 0.2, 0),
       axisA: new CANNON.Vec3(1, 0, 0),
       axisB: new CANNON.Vec3(1, 0, 0),
     });
