@@ -105,6 +105,23 @@ export class Ragdoll {
     this.kickTimer = 0;
     this.headbuttTimer = 0;
 
+    // Floating health bar above head
+    this.healthBarGroup = new THREE.Group();
+    const barWidth = 0.6;
+    const barHeight = 0.07;
+    // Background (dark)
+    const bgGeo = new THREE.PlaneGeometry(barWidth, barHeight);
+    const bgMat = new THREE.MeshBasicMaterial({ color: 0x333333, side: THREE.DoubleSide });
+    const bgMesh = new THREE.Mesh(bgGeo, bgMat);
+    this.healthBarGroup.add(bgMesh);
+    // Fill (green → red based on damage)
+    const fillGeo = new THREE.PlaneGeometry(barWidth, barHeight);
+    const fillMat = new THREE.MeshBasicMaterial({ color: 0x44ff44, side: THREE.DoubleSide });
+    this.healthBarFill = new THREE.Mesh(fillGeo, fillMat);
+    this.healthBarGroup.add(this.healthBarFill);
+    game.scene.add(this.healthBarGroup);
+    this.meshes._healthBar = this.healthBarGroup;
+
     // Balance
     this.balance = new BalanceSystem(this);
     this._balanceCallback = game.onUpdate((dt) => {
@@ -281,6 +298,29 @@ export class Ragdoll {
     this.meshes.rightUpperLeg.position.set(rlX, legY, rlZ);
     this.meshes.leftLowerLeg.position.set(llFootX, llFootY, llFootZ2);
     this.meshes.rightLowerLeg.position.set(rlFootX, rlFootY, rlFootZ2);
+
+    // Health bar — float above head, always face camera
+    if (this.healthBarGroup) {
+      this.healthBarGroup.position.set(x, y + 1.0, z);
+      // Billboard — face camera
+      const cam = this.game.camera;
+      if (cam) {
+        this.healthBarGroup.quaternion.copy(cam.quaternion);
+      }
+      // Scale fill by health (1 = full, 0 = empty)
+      const hp = 1 - this.balance.getDamagePercent();
+      this.healthBarFill.scale.x = Math.max(hp, 0.01);
+      // Offset fill so it shrinks from right
+      this.healthBarFill.position.x = -(1 - hp) * 0.3;
+      // Color: green → yellow → red
+      if (hp > 0.5) {
+        this.healthBarFill.material.color.setHex(0x44ff44);
+      } else if (hp > 0.25) {
+        this.healthBarFill.material.color.setHex(0xffaa00);
+      } else {
+        this.healthBarFill.material.color.setHex(0xff2222);
+      }
+    }
   }
 
   triggerPunch() { this.punchTimer = 0.3; }
