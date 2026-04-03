@@ -58,16 +58,16 @@ export class Ragdoll {
     const pupilMat = new THREE.MeshStandardMaterial({ color: 0x111111 });
 
     const leftEye = new THREE.Mesh(eyeGeo, eyeWhiteMat);
-    leftEye.position.set(-0.1, 0.08, -0.24);
+    leftEye.position.set(-0.1, 0.08, 0.24);
     const leftPupil = new THREE.Mesh(pupilGeo, pupilMat);
-    leftPupil.position.set(0, 0, -0.03);
+    leftPupil.position.set(0, 0, 0.03);
     leftEye.add(leftPupil);
     headMesh.add(leftEye);
 
     const rightEye = new THREE.Mesh(eyeGeo, eyeWhiteMat);
-    rightEye.position.set(0.1, 0.08, -0.24);
+    rightEye.position.set(0.1, 0.08, 0.24);
     const rightPupil = new THREE.Mesh(pupilGeo, pupilMat);
-    rightPupil.position.set(0, 0, -0.03);
+    rightPupil.position.set(0, 0, 0.03);
     rightEye.add(rightPupil);
     headMesh.add(rightEye);
 
