@@ -22,7 +22,7 @@ export class CharacterController {
     this.punchImpulse = 20;
     this.kickImpulse = 18;
     this.headbuttImpulse = 15;
-    this.attackRange = 3.0;
+    this.attackRange = 1.5;
   }
 
   update(dt, actions) {

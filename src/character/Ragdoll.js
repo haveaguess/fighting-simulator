@@ -173,12 +173,14 @@ export class Ragdoll {
     this.meshes.head.position.set(x, y + 0.65 + Math.abs(walk) * 0.02, z);
     this.meshes.head.rotation.y = this.facingAngle;
 
-    // Headbutt animation
+    // Headbutt animation — lunge toward enemy (using facing direction)
     if (this.headbuttTimer > 0) {
       this.headbuttTimer -= dt;
       const t = Math.max(0, this.headbuttTimer / 0.3);
-      this.meshes.head.position.z += (t > 0.5 ? (1 - t) : t) * -0.4;
-      this.meshes.head.position.y -= (t > 0.5 ? (1 - t) : t) * 0.15;
+      const extend = (t > 0.5 ? (1 - t) : t);
+      this.meshes.head.position.x += sin * extend * 0.4;
+      this.meshes.head.position.z += cos * extend * 0.4;
+      this.meshes.head.position.y -= extend * 0.15;
     }
 
     // Arms — positioned relative to facing direction
@@ -221,7 +223,7 @@ export class Ragdoll {
     this.meshes.rightLowerArm.position.set(raHandX, raHandY, raHandZ);
 
     // Legs — walk cycle relative to facing
-    const legY = y - 0.45;
+    const legY = y - 0.25;
     const legSwing = walk * 0.2;
 
     // Left leg
@@ -229,14 +231,14 @@ export class Ragdoll {
     const llZ = z - sideZ * 0.14;
     let llFootX = llX - sin * legSwing;
     let llFootZ2 = llZ - cos * legSwing;
-    let llFootY = legY - 0.3;
+    let llFootY = legY - 0.2;
 
     // Right leg
     const rlX = x + sideX * 0.14;
     const rlZ = z + sideZ * 0.14;
     let rlFootX = rlX + sin * legSwing;
     let rlFootZ2 = rlZ + cos * legSwing;
-    let rlFootY = legY - 0.3;
+    let rlFootY = legY - 0.2;
 
     // Kick animation — right leg extends forward
     if (this.kickTimer > 0) {
