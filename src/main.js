@@ -1,9 +1,16 @@
 import { Game } from './core/Game.js';
-import { Ragdoll } from './character/Ragdoll.js';
+import { Player } from './character/Player.js';
+import { InputManager } from './input/InputManager.js';
+import { PLAYER_1_KEYS, PLAYER_2_KEYS } from './input/KeyboardBindings.js';
 import * as THREE from 'three';
 import * as CANNON from 'cannon-es';
 
 const game = new Game();
+const input = new InputManager();
+
+// Register keyboard players
+input.registerKeyboardPlayer(0, PLAYER_1_KEYS);
+input.registerKeyboardPlayer(1, PLAYER_2_KEYS);
 
 // Ground
 const groundBody = new CANNON.Body({
@@ -21,7 +28,8 @@ groundMesh.receiveShadow = true;
 game.scene.add(groundMesh);
 game.addSyncPair(groundBody, groundMesh);
 
-// Spawn ragdoll
-const ragdoll = new Ragdoll(game, { x: 0, y: 5, z: 0 }, 0xff4444);
+// Spawn players
+const player1 = new Player(game, input, 0, { x: -3, y: 3, z: 0 }, 0xff4444);
+const player2 = new Player(game, input, 1, { x: 3, y: 3, z: 0 }, 0x4444ff);
 
 game.start();
