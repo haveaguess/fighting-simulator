@@ -4,7 +4,7 @@ export class BalanceSystem {
   constructor(ragdoll) {
     this.ragdoll = ragdoll;
     this.damage = 0;          // 0 to 100
-    this.maxForce = 80;       // corrective force strength
+    this.maxForce = 200;      // corrective force strength
     this.ragdollTimer = 0;    // seconds remaining in full ragdoll
     this.ragdollDuration = 3; // seconds of full ragdoll at max damage
   }

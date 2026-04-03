@@ -191,7 +191,7 @@ export class GameApp {
       const angle = (i / count) * Math.PI * 2;
       points.push({
         x: Math.cos(angle) * radius,
-        y: 3,
+        y: 1.5,
         z: Math.sin(angle) * radius,
       });
     }
