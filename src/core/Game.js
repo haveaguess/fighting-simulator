@@ -31,6 +31,9 @@ export class Game {
     // Physics
     this.world = new CANNON.World({ gravity: new CANNON.Vec3(0, -9.82, 0) });
     this.world.broadphase = new CANNON.SAPBroadphase(this.world);
+    // Low default friction so characters can slide on ground
+    this.world.defaultContactMaterial.friction = 0.01;
+    this.world.defaultContactMaterial.restitution = 0.1;
 
     // Tracked objects for physics sync
     this.syncPairs = [];

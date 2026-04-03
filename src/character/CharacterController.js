@@ -11,8 +11,8 @@ export class CharacterController {
     this.headbuttCooldown = 0;
     this.grabConstraint = null;
 
-    this.moveForce = 80;
-    this.jumpImpulse = 12;
+    this.moveForce = 60;
+    this.jumpImpulse = 10;
     this.punchImpulse = 20;
     this.kickImpulse = 18;
     this.headbuttImpulse = 15;

@@ -15,20 +15,21 @@ export class Ragdoll {
     const py = position.y;
     const pz = position.z;
 
-    // === MAIN BODY: Single capsule-shaped physics body ===
-    // This is the only real physics body — everything else is visual
-    const torsoShape = new CANNON.Cylinder(0.35, 0.35, 1.4, 8);
+    // === MAIN BODY: Sphere physics body ===
+    // Sphere slides much better on ground than cylinder (no flat contact patch)
     const characterMaterial = new CANNON.Material('character');
-    characterMaterial.friction = 0.05;  // Very low — slide on ground easily
-    characterMaterial.restitution = 0.1;
+    characterMaterial.friction = 0.0;
+    characterMaterial.restitution = 0.0;
     const mainBody = new CANNON.Body({
-      mass: 8,
-      linearDamping: 0.3,
+      mass: 5,
+      linearDamping: 0.6,  // Higher damping to compensate for frictionless sliding
       angularDamping: 0.99,
       fixedRotation: true,
       material: characterMaterial,
     });
-    mainBody.addShape(torsoShape);
+    // Two spheres stacked to approximate a capsule shape
+    mainBody.addShape(new CANNON.Sphere(0.35), new CANNON.Vec3(0, 0.2, 0));
+    mainBody.addShape(new CANNON.Sphere(0.35), new CANNON.Vec3(0, -0.2, 0));
     mainBody.position.set(px, py, pz);
     game.world.addBody(mainBody);
     this.bodies.torso = mainBody;
