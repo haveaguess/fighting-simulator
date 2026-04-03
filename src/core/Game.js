@@ -7,7 +7,6 @@ export class Game {
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
     this.renderer.setSize(window.innerWidth, window.innerHeight);
     this.renderer.shadowMap.enabled = true;
-    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     document.body.appendChild(this.renderer.domElement);
 
     // Scene
@@ -34,7 +33,7 @@ export class Game {
     this.world.broadphase = new CANNON.SAPBroadphase(this.world);
 
     // Tracked objects for physics sync
-    this.syncPairs = []; // { body, mesh }
+    this.syncPairs = [];
 
     // Resize
     window.addEventListener('resize', () => {
@@ -44,10 +43,10 @@ export class Game {
     });
 
     // Timing
-    this.clock = new THREE.Clock();
     this.fixedTimeStep = 1 / 60;
     this.maxSubSteps = 3;
     this.timeScale = 1;
+    this._lastTime = 0;
 
     // Update callbacks
     this.updateCallbacks = [];
@@ -63,7 +62,7 @@ export class Game {
 
   onUpdate(callback) {
     this.updateCallbacks.push(callback);
-    return callback; // return ref for removal
+    return callback;
   }
 
   removeOnUpdate(callback) {
@@ -75,30 +74,41 @@ export class Game {
   }
 
   start() {
+    this._lastTime = performance.now();
+
     const animate = () => {
       requestAnimationFrame(animate);
-      const rawDt = this.clock.getDelta();
-      const dt = Math.min(rawDt, 0.1); // Cap at 100ms to prevent explosion after pause
+      try {
+        const now = performance.now();
+        const rawDt = (now - this._lastTime) / 1000;
+        this._lastTime = now;
+        const dt = Math.min(rawDt, 0.1);
 
-      // Step physics
-      this.world.step(this.fixedTimeStep, dt * this.timeScale, this.maxSubSteps);
-
-      // Sync meshes to physics bodies
-      for (const { body, mesh } of this.syncPairs) {
-        mesh.position.copy(body.position);
-        mesh.quaternion.copy(body.quaternion);
-      }
-
-      // Custom updates
-      for (const cb of this.updateCallbacks) {
-        try {
-          cb(dt);
-        } catch (e) {
-          console.error('Update callback error:', e);
+        // Step physics
+        const physicsDt = dt * this.timeScale;
+        if (physicsDt > 0) {
+          this.world.step(this.fixedTimeStep, physicsDt, this.maxSubSteps);
         }
-      }
 
-      this.renderer.render(this.scene, this.camera);
+        // Sync meshes to physics bodies
+        for (const { body, mesh } of this.syncPairs) {
+          mesh.position.copy(body.position);
+          mesh.quaternion.copy(body.quaternion);
+        }
+
+        // Custom updates
+        for (const cb of this.updateCallbacks) {
+          try {
+            cb(dt);
+          } catch (e) {
+            console.error('Update callback error:', e);
+          }
+        }
+
+        this.renderer.render(this.scene, this.camera);
+      } catch (e) {
+        console.error('Game loop error:', e);
+      }
     };
     animate();
   }
