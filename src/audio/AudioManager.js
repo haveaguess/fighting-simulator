@@ -176,6 +176,36 @@ export class AudioManager {
     }
   }
 
+  // === CHICKEN SOUNDS ===
+  playCluck() {
+    this.ensure();
+    // Quick descending chirp — bawk!
+    this.playTone(0.06, 800, 'square', -400, 0.2);
+    setTimeout(() => this.playTone(0.04, 600, 'square', -300, 0.15), 70);
+  }
+
+  playCluckHit() {
+    this.ensure();
+    // Startled squawk
+    this.playTone(0.1, 1200, 'square', -600, 0.25);
+    this.playTone(0.08, 900, 'sawtooth', -400, 0.15);
+  }
+
+  playCluckJump() {
+    this.ensure();
+    // Flappy wing sound + chirp
+    this.playNoise(0.08, 2000, 800, 0.1);
+    this.playTone(0.07, 700, 'square', 300, 0.15);
+  }
+
+  playCluckDeath() {
+    this.ensure();
+    // Long descending squawk
+    this.playTone(0.3, 1000, 'square', -800, 0.3);
+    setTimeout(() => this.playTone(0.2, 600, 'square', -400, 0.2), 150);
+    setTimeout(() => this.playTone(0.15, 400, 'square', -300, 0.15), 300);
+  }
+
   // === PRIMITIVES ===
   playNoise(duration, freqStart, freqEnd, volume = 0.3) {
     if (!this.ctx || !this.enabled) return;

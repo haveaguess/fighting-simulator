@@ -32,9 +32,22 @@ export function startBrawlMode() {
   applyCostume(p1.ragdoll, 'wrestler');
   p1.costumeKey = 'wrestler';
 
-  const p2 = new Player(game, input, 1, { x: 4, y: 1.5, z: 0 }, 0xff4444, audio);
-  applyCostume(p2.ragdoll, 'luchador');
-  p2.costumeKey = 'luchador';
+  // Chicken audio — wraps the normal audio with chicken sounds
+  const chickenAudio = {
+    playPunch() { audio.playCluck(); },
+    playKick() { audio.playCluck(); },
+    playHeadbutt() { audio.playCluckHit(); },
+    playHit() { audio.playCluckHit(); },
+    playJump() { audio.playCluckJump(); },
+    playEliminated() { audio.playCluckDeath(); },
+    playCountdown() { audio.playCountdown(); },
+    playFight() { audio.playFight(); },
+    playWin() { audio.playWin(); },
+  };
+
+  const p2 = new Player(game, input, 1, { x: 4, y: 1.5, z: 0 }, 0xffffff, chickenAudio);
+  applyCostume(p2.ragdoll, 'chicken');
+  p2.costumeKey = 'chicken';
 
   const players = [p1, p2];
   game._allPlayers = players;
