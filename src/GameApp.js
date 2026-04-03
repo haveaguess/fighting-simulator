@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { Game } from './core/Game.js';
 import { MatchManager } from './core/MatchManager.js';
+import { WavesManager } from './core/WavesManager.js';
 import { Player } from './character/Player.js';
 import { AIPlayer } from './character/AIPlayer.js';
 import { InputManager } from './input/InputManager.js';
@@ -10,6 +11,7 @@ import { applyCostume, COSTUME_KEYS } from './character/Costumes.js';
 import { HUD } from './ui/HUD.js';
 import { TitleScreen } from './ui/screens/TitleScreen.js';
 import { PlayerJoinScreen } from './ui/screens/PlayerJoinScreen.js';
+import { ModeSelectScreen } from './ui/screens/ModeSelectScreen.js';
 import { CostumeSelectScreen } from './ui/screens/CostumeSelectScreen.js';
 import { ArenaSelectScreen } from './ui/screens/ArenaSelectScreen.js';
 import { CameraController } from './core/CameraController.js';
@@ -39,10 +41,12 @@ export class GameApp {
     this.arena = null;
     this.hud = null;
     this.match = null;
+    this.wavesManager = null;
     this.damageSystem = null;
     this.audio = new AudioManager();
     this.cameraController = null;
     this.pause = new PauseMenu(this.game, this.input);
+    this.gameMode = 'melee';
   }
 
   start() {
@@ -58,13 +62,22 @@ export class GameApp {
 
   showPlayerJoin() {
     const screen = new PlayerJoinScreen(this.ui);
-    screen.onReady = (joinedSet) => this.showCostumeSelect(joinedSet);
+    screen.onReady = (joinedSet) => this.showModeSelect(joinedSet);
+    screen.show();
+  }
+
+  showModeSelect(joinedPlayers) {
+    const screen = new ModeSelectScreen(this.ui);
+    screen.onReady = (mode) => {
+      this.gameMode = mode;
+      this.showCostumeSelect(joinedPlayers);
+    };
     screen.show();
   }
 
   showCostumeSelect(joinedPlayers) {
     const humanCount = joinedPlayers.size;
-    const totalPlayers = Math.max(humanCount, 2);
+    const totalPlayers = this.gameMode === 'waves' ? humanCount : Math.max(humanCount, 2);
     const screen = new CostumeSelectScreen(this.ui, humanCount);
     screen.onReady = (costumeChoices) => {
       this.showArenaSelect(joinedPlayers, costumeChoices, totalPlayers);
@@ -75,13 +88,17 @@ export class GameApp {
   showArenaSelect(joinedPlayers, costumeChoices, totalPlayers) {
     const screen = new ArenaSelectScreen(this.ui);
     screen.onReady = (arenaKey) => {
-      this.startGame(joinedPlayers, costumeChoices, arenaKey, totalPlayers);
+      if (this.gameMode === 'waves') {
+        this.startWavesGame(joinedPlayers, costumeChoices, arenaKey);
+      } else {
+        this.startMeleeGame(joinedPlayers, costumeChoices, arenaKey, totalPlayers);
+      }
     };
     screen.show();
   }
 
-  startGame(joinedPlayers, costumeChoices, arenaKey, totalPlayers) {
-    // Track callbacks for cleanup
+  // === MELEE MODE ===
+  startMeleeGame(joinedPlayers, costumeChoices, arenaKey, totalPlayers) {
     this._gameCallbacks = [];
 
     // Load arena
@@ -89,32 +106,18 @@ export class GameApp {
     this.arena = new ArenaClass(this.game);
     this._gameCallbacks.push(this.game.onUpdate((dt) => this.arena.update(dt)));
 
-    // Create damage system
+    // Damage system
     this.damageSystem = new DamageSystem(this.game);
 
     // Create players
     this.players = [];
     const spawnPoints = this.getSpawnPoints(totalPlayers);
     let humanIndex = 0;
-
     const joinedArray = [...joinedPlayers];
 
-    // Register keyboard players
-    if (joinedArray.includes(0)) {
-      this.input.registerKeyboardPlayer(0, PLAYER_1_KEYS);
-    }
-    if (joinedArray.includes(1)) {
-      this.input.registerKeyboardPlayer(1, PLAYER_2_KEYS);
-    }
+    this._registerInputs(joinedArray);
 
-    // Register gamepad players
-    for (const idx of joinedArray) {
-      if (idx >= 2) {
-        this.input.registerGamepadPlayer(idx, idx - 2);
-      }
-    }
-
-    // Create human players
+    // Human players
     for (const idx of joinedArray) {
       const color = PLAYER_COLORS[this.players.length];
       const p = new Player(this.game, this.input, idx, spawnPoints[this.players.length], color);
@@ -127,7 +130,7 @@ export class GameApp {
       humanIndex++;
     }
 
-    // Fill remaining with AI
+    // Fill with AI
     while (this.players.length < totalPlayers) {
       const color = PLAYER_COLORS[this.players.length];
       const ai = new AIPlayer(this.game, this.players, spawnPoints[this.players.length], color);
@@ -140,23 +143,18 @@ export class GameApp {
       this.players.push(ai);
     }
 
-    // Give all players/game reference to player list for combat targeting
     this.game._allPlayers = this.players;
     for (const p of this.players) {
-      if (p.isAI) {
-        p.allPlayers = this.players;
-      }
+      if (p.isAI) p.allPlayers = this.players;
     }
 
-    // HUD
+    // HUD + Camera
     this.hud = new HUD(this.players);
     this._gameCallbacks.push(this.game.onUpdate(() => this.hud.update()));
-
-    // Camera controller
     this.cameraController = new CameraController(this.game.camera);
     this._gameCallbacks.push(this.game.onUpdate((dt) => this.cameraController.update(dt, this.players)));
 
-    // Match manager (its onUpdate callback is tracked internally)
+    // Match manager
     this.match = new MatchManager(this.game, this.players);
     this.match.onStateChange = (state, data) => {
       if (state === 'countdown') {
@@ -185,6 +183,97 @@ export class GameApp {
     this.match.startMatch();
   }
 
+  // === WAVES MODE ===
+  startWavesGame(joinedPlayers, costumeChoices, arenaKey) {
+    this._gameCallbacks = [];
+
+    // Load arena
+    const ArenaClass = ARENA_MAP[arenaKey];
+    this.arena = new ArenaClass(this.game);
+    this._gameCallbacks.push(this.game.onUpdate((dt) => this.arena.update(dt)));
+
+    // Damage system
+    this.damageSystem = new DamageSystem(this.game);
+
+    // Create human players only
+    this.players = [];
+    const joinedArray = [...joinedPlayers];
+    this._registerInputs(joinedArray);
+
+    let humanIndex = 0;
+    const spawnPoints = this.getSpawnPoints(joinedArray.length);
+
+    for (const idx of joinedArray) {
+      const color = PLAYER_COLORS[this.players.length];
+      const p = new Player(this.game, this.input, idx, spawnPoints[this.players.length], color);
+      const costumeKey = costumeChoices[humanIndex] || COSTUME_KEYS[0];
+      p.costumeKey = costumeKey;
+      p.damageSystem = this.damageSystem;
+      applyCostume(p.ragdoll, costumeKey);
+      this.damageSystem.register(p.ragdoll);
+      this.players.push(p);
+      humanIndex++;
+    }
+
+    this.game._allPlayers = this.players;
+
+    // HUD (just human players initially — enemies get added by WavesManager)
+    this.hud = new HUD(this.players);
+    this._gameCallbacks.push(this.game.onUpdate(() => this.hud.update()));
+
+    // Camera
+    this.cameraController = new CameraController(this.game.camera);
+    this._gameCallbacks.push(this.game.onUpdate((dt) => {
+      // Track all alive entities (humans + enemies)
+      const all = this.wavesManager ? [...this.players, ...this.wavesManager.enemies] : this.players;
+      this.cameraController.update(dt, all);
+    }));
+
+    // Waves manager
+    this.wavesManager = new WavesManager(
+      this.game, this.players, this.arena, this.damageSystem, this.hud, this.audio
+    );
+
+    this.wavesManager.onStateChange = (state, data) => {
+      if (state === 'waveStart') {
+        this.hud.showCenter(`WAVE ${data.wave}`, 2);
+        this.audio.playCountdown();
+      }
+      if (state === 'fight') {
+        this.hud.showCenter('FIGHT!', 1.5);
+        this.audio.playFight();
+      }
+      if (state === 'waveComplete') {
+        this.hud.showCenter(`WAVE ${data.wave} CLEARED!`, 2.5);
+        this.audio.playWin();
+      }
+      if (state === 'gameOver') {
+        this.hud.showCenter(`GAME OVER - Wave ${data.wave}!`);
+        this.audio.playEliminated();
+        setTimeout(() => {
+          this.cleanup();
+          this.showTitle();
+        }, 5000);
+      }
+    };
+
+    this.wavesManager.startWaves();
+  }
+
+  _registerInputs(joinedArray) {
+    if (joinedArray.includes(0)) {
+      this.input.registerKeyboardPlayer(0, PLAYER_1_KEYS);
+    }
+    if (joinedArray.includes(1)) {
+      this.input.registerKeyboardPlayer(1, PLAYER_2_KEYS);
+    }
+    for (const idx of joinedArray) {
+      if (idx >= 2) {
+        this.input.registerGamepadPlayer(idx, idx - 2);
+      }
+    }
+  }
+
   getSpawnPoints(count) {
     const radius = 5;
     const points = [];
@@ -200,12 +289,20 @@ export class GameApp {
   }
 
   cleanup() {
-    // Remove game loop callbacks
     if (this._gameCallbacks) {
       for (const cb of this._gameCallbacks) {
         this.game.removeOnUpdate(cb);
       }
       this._gameCallbacks = [];
+    }
+
+    // Clean up waves enemies
+    if (this.wavesManager) {
+      this.wavesManager.clearEnemies();
+      if (this.wavesManager._updateCallback) {
+        this.game.removeOnUpdate(this.wavesManager._updateCallback);
+      }
+      this.wavesManager = null;
     }
 
     for (const p of this.players) p.destroy();
@@ -218,6 +315,7 @@ export class GameApp {
       this.game.removeOnUpdate(this.match._updateCallback);
     }
     this.match = null;
+    this.game._allPlayers = [];
     this.game.scene.background = new THREE.Color(0x87ceeb);
   }
 }
