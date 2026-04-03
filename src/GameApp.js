@@ -1,3 +1,4 @@
+import * as THREE from 'three';
 import { Game } from './core/Game.js';
 import { MatchManager } from './core/MatchManager.js';
 import { Player } from './character/Player.js';
@@ -80,10 +81,13 @@ export class GameApp {
   }
 
   startGame(joinedPlayers, costumeChoices, arenaKey, totalPlayers) {
+    // Track callbacks for cleanup
+    this._gameCallbacks = [];
+
     // Load arena
     const ArenaClass = ARENA_MAP[arenaKey];
     this.arena = new ArenaClass(this.game);
-    this.game.onUpdate((dt) => this.arena.update(dt));
+    this._gameCallbacks.push(this.game.onUpdate((dt) => this.arena.update(dt)));
 
     // Create damage system
     this.damageSystem = new DamageSystem(this.game);
@@ -116,6 +120,7 @@ export class GameApp {
       const p = new Player(this.game, this.input, idx, spawnPoints[this.players.length], color);
       const costumeKey = costumeChoices[humanIndex] || COSTUME_KEYS[0];
       p.costumeKey = costumeKey;
+      p.damageSystem = this.damageSystem;
       applyCostume(p.ragdoll, costumeKey);
       this.damageSystem.register(p.ragdoll);
       this.players.push(p);
@@ -129,6 +134,7 @@ export class GameApp {
       ai.isAI = true;
       const randomCostume = COSTUME_KEYS[Math.floor(Math.random() * COSTUME_KEYS.length)];
       ai.costumeKey = randomCostume;
+      ai.damageSystem = this.damageSystem;
       applyCostume(ai.ragdoll, randomCostume);
       this.damageSystem.register(ai.ragdoll);
       this.players.push(ai);
@@ -143,13 +149,13 @@ export class GameApp {
 
     // HUD
     this.hud = new HUD(this.players);
-    this.game.onUpdate(() => this.hud.update());
+    this._gameCallbacks.push(this.game.onUpdate(() => this.hud.update()));
 
     // Camera controller
     this.cameraController = new CameraController(this.game.camera);
-    this.game.onUpdate((dt) => this.cameraController.update(dt, this.players));
+    this._gameCallbacks.push(this.game.onUpdate((dt) => this.cameraController.update(dt, this.players)));
 
-    // Match manager
+    // Match manager (its onUpdate callback is tracked internally)
     this.match = new MatchManager(this.game, this.players);
     this.match.onStateChange = (state, data) => {
       if (state === 'countdown') {
@@ -193,12 +199,24 @@ export class GameApp {
   }
 
   cleanup() {
+    // Remove game loop callbacks
+    if (this._gameCallbacks) {
+      for (const cb of this._gameCallbacks) {
+        this.game.removeOnUpdate(cb);
+      }
+      this._gameCallbacks = [];
+    }
+
     for (const p of this.players) p.destroy();
     this.players = [];
     if (this.arena) this.arena.destroy();
     this.arena = null;
     if (this.hud) this.hud.destroy();
     this.hud = null;
+    if (this.match?._updateCallback) {
+      this.game.removeOnUpdate(this.match._updateCallback);
+    }
     this.match = null;
+    this.game.scene.background = new THREE.Color(0x87ceeb);
   }
 }

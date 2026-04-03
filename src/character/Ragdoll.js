@@ -210,7 +210,7 @@ export class Ragdoll {
     this.constraints.push(rightKneeConstraint);
 
     this.balance = new BalanceSystem(this);
-    game.onUpdate((dt) => this.balance.update(dt));
+    this._balanceCallback = game.onUpdate((dt) => this.balance.update(dt));
   }
 
   getTorso() {
@@ -227,6 +227,12 @@ export class Ragdoll {
   }
 
   destroy() {
+    // Remove balance update callback
+    if (this._balanceCallback) {
+      this.game.removeOnUpdate(this._balanceCallback);
+      this._balanceCallback = null;
+    }
+
     // Remove constraints
     for (const constraint of this.constraints) {
       this.game.world.removeConstraint(constraint);

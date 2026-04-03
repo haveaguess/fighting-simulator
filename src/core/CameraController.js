@@ -35,7 +35,8 @@ export class CameraController {
     const zoom = THREE.MathUtils.clamp(spread * 1.5 + 10, this.minZoom, this.maxZoom);
 
     const targetPos = new THREE.Vector3(centerX, Math.max(avgY, 2), centerZ);
-    this.target.lerp(targetPos, dt * this.smoothness);
+    const lerpFactor = Math.min(dt * this.smoothness, 1);
+    this.target.lerp(targetPos, lerpFactor);
 
     const desiredPos = new THREE.Vector3(
       this.target.x + this.offset.x,
@@ -43,7 +44,7 @@ export class CameraController {
       this.target.z + zoom
     );
 
-    this.camera.position.lerp(desiredPos, dt * this.smoothness);
+    this.camera.position.lerp(desiredPos, lerpFactor);
     this.camera.lookAt(this.target);
   }
 }

@@ -10,7 +10,7 @@ export class MatchManager {
     this.matchWinner = null;
     this.onStateChange = null; // callback
 
-    game.onUpdate((dt) => this.update(dt));
+    this._updateCallback = game.onUpdate((dt) => this.update(dt));
   }
 
   startMatch() {

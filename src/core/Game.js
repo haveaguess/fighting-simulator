@@ -63,6 +63,15 @@ export class Game {
 
   onUpdate(callback) {
     this.updateCallbacks.push(callback);
+    return callback; // return ref for removal
+  }
+
+  removeOnUpdate(callback) {
+    this.updateCallbacks = this.updateCallbacks.filter(cb => cb !== callback);
+  }
+
+  clearUpdateCallbacks() {
+    this.updateCallbacks = [];
   }
 
   start() {
@@ -81,7 +90,11 @@ export class Game {
 
       // Custom updates
       for (const cb of this.updateCallbacks) {
-        cb(dt);
+        try {
+          cb(dt);
+        } catch (e) {
+          console.error('Update callback error:', e);
+        }
       }
 
       this.renderer.render(this.scene, this.camera);

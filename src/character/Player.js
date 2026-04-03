@@ -15,7 +15,7 @@ export class Player {
     this.ragdoll = new Ragdoll(game, position, color);
     this.controller = new CharacterController(this.ragdoll, game);
 
-    game.onUpdate((dt) => this.update(dt));
+    this._updateCallback = game.onUpdate((dt) => this.update(dt));
   }
 
   update(dt) {
@@ -34,10 +34,15 @@ export class Player {
     this.ragdoll = new Ragdoll(this.game, position, this.color);
     this.controller = new CharacterController(this.ragdoll, this.game);
     if (this.costumeKey) applyCostume(this.ragdoll, this.costumeKey);
+    if (this.damageSystem) this.damageSystem.register(this.ragdoll);
     this.alive = true;
   }
 
   destroy() {
+    if (this._updateCallback) {
+      this.game.removeOnUpdate(this._updateCallback);
+      this._updateCallback = null;
+    }
     this.ragdoll.destroy();
   }
 }
