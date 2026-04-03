@@ -47,6 +47,7 @@ export class Game {
     this.clock = new THREE.Clock();
     this.fixedTimeStep = 1 / 60;
     this.maxSubSteps = 3;
+    this.timeScale = 1;
 
     // Update callbacks
     this.updateCallbacks = [];
@@ -70,7 +71,7 @@ export class Game {
       const dt = this.clock.getDelta();
 
       // Step physics
-      this.world.step(this.fixedTimeStep, dt, this.maxSubSteps);
+      this.world.step(this.fixedTimeStep, dt * this.timeScale, this.maxSubSteps);
 
       // Sync meshes to physics bodies
       for (const { body, mesh } of this.syncPairs) {

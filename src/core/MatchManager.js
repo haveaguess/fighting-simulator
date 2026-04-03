@@ -61,6 +61,8 @@ export class MatchManager {
     if (this.state === 'playing') {
       const alivePlayers = this.players.filter(p => p.alive);
       if (alivePlayers.length <= 1) {
+        this.game.timeScale = 0.3;
+        setTimeout(() => { this.game.timeScale = 1; }, 2000);
         this.roundWinner = alivePlayers[0] || null;
         if (this.roundWinner) {
           this.roundWinner.roundWins++;
