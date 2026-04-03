@@ -87,16 +87,17 @@ export class AudioManager {
   startDishWhir() {
     this.ensure();
     if (this._dishOsc) return;
+    // High-pitched mechanical hum — not a low rumble
     const osc = this.ctx.createOscillator();
     const gain = this.ctx.createGain();
-    osc.type = 'sawtooth';
-    osc.frequency.value = 80;
-    gain.gain.value = 0.04;
-    // Add slight wobble
+    osc.type = 'sine';
+    osc.frequency.value = 220;
+    gain.gain.value = 0.02;
+    // Slight pitch wobble for spinning effect
     const lfo = this.ctx.createOscillator();
     const lfoGain = this.ctx.createGain();
-    lfo.frequency.value = 2;
-    lfoGain.gain.value = 10;
+    lfo.frequency.value = 1.5;
+    lfoGain.gain.value = 8;
     lfo.connect(lfoGain).connect(osc.frequency);
     lfo.start();
     osc.connect(gain).connect(this.ctx.destination);
