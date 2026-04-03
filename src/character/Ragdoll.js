@@ -18,11 +18,15 @@ export class Ragdoll {
     // === MAIN BODY: Single capsule-shaped physics body ===
     // This is the only real physics body — everything else is visual
     const torsoShape = new CANNON.Cylinder(0.35, 0.35, 1.4, 8);
+    const characterMaterial = new CANNON.Material('character');
+    characterMaterial.friction = 0.05;  // Very low — slide on ground easily
+    characterMaterial.restitution = 0.1;
     const mainBody = new CANNON.Body({
       mass: 8,
-      linearDamping: 0.4,
-      angularDamping: 0.99, // Very high — resist rotation
-      fixedRotation: true,  // Don't rotate at all from physics
+      linearDamping: 0.3,
+      angularDamping: 0.99,
+      fixedRotation: true,
+      material: characterMaterial,
     });
     mainBody.addShape(torsoShape);
     mainBody.position.set(px, py, pz);
