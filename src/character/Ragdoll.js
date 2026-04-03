@@ -22,7 +22,7 @@ export class Ragdoll {
     characterMaterial.restitution = 0.0;
     const mainBody = new CANNON.Body({
       mass: 5,
-      linearDamping: 0.6,  // Higher damping to compensate for frictionless sliding
+      linearDamping: 0.05, // Low overall damping — horizontal damping done manually in controller
       angularDamping: 0.99,
       fixedRotation: true,
       material: characterMaterial,

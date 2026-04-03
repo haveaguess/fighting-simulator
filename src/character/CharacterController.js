@@ -11,12 +11,17 @@ export class CharacterController {
     this.headbuttCooldown = 0;
     this.grabConstraint = null;
 
-    this.moveForce = 60;
-    this.jumpImpulse = 10;
+    this.moveForce = 120;
+    this.horizontalDamping = 0.92; // applied per frame to X/Z velocity
+    this.jumpImpulse = 18;      // initial kick — enough for a visible short hop
+    this.jumpHoldForce = 50;    // additional force while held
+    this.jumpHoldMax = 0.2;     // max seconds of hold boost
+    this.jumpHoldTimer = 0;
+    this.jumpedThisPress = false;
     this.punchImpulse = 20;
     this.kickImpulse = 18;
     this.headbuttImpulse = 15;
-    this.attackRange = 2.0;
+    this.attackRange = 3.0;
   }
 
   update(dt, actions) {
@@ -24,7 +29,7 @@ export class CharacterController {
 
     const torso = this.ragdoll.getTorso();
 
-    // Movement — apply force to main body
+    // Movement
     const force = new CANNON.Vec3(0, 0, 0);
     if (actions[Actions.MOVE_LEFT]) force.x -= this.moveForce;
     if (actions[Actions.MOVE_RIGHT]) force.x += this.moveForce;
@@ -32,9 +37,25 @@ export class CharacterController {
     if (actions[Actions.MOVE_BACKWARD]) force.z += this.moveForce;
     torso.applyForce(force);
 
-    // Jump
-    if (actions[Actions.JUMP] && this.isGrounded()) {
-      torso.applyImpulse(new CANNON.Vec3(0, this.jumpImpulse, 0));
+    // Variable jump — tap for short hop, hold for full jump
+    if (actions[Actions.JUMP]) {
+      if (this.isGrounded() && !this.jumpedThisPress) {
+        // Initial jump impulse
+        torso.applyImpulse(new CANNON.Vec3(0, this.jumpImpulse, 0));
+        this.jumpedThisPress = true;
+        this.jumpHoldTimer = 0;
+      }
+      // Continue applying upward force while held (up to max time)
+      if (this.jumpedThisPress && this.jumpHoldTimer < this.jumpHoldMax) {
+        this.jumpHoldTimer += dt;
+        torso.applyForce(new CANNON.Vec3(0, this.jumpHoldForce, 0));
+      }
+    } else {
+      // Released — allow jumping again when grounded
+      if (this.isGrounded()) {
+        this.jumpedThisPress = false;
+      }
+      this.jumpHoldTimer = this.jumpHoldMax; // stop any residual hold force
     }
 
     // Punch
@@ -67,59 +88,50 @@ export class CharacterController {
     } else {
       this.releaseGrab();
     }
+
+    // Horizontal damping — slow down X/Z without affecting Y (jump/fall)
+    torso.velocity.x *= this.horizontalDamping;
+    torso.velocity.z *= this.horizontalDamping;
   }
 
   _hitNearby(impulse, damageAmount) {
     const myBody = this.ragdoll.getTorso();
     const myPos = myBody.position;
 
-    // Find facing direction from velocity, or default forward
-    let dx = myBody.velocity.x;
-    let dz = myBody.velocity.z;
-    const len = Math.sqrt(dx * dx + dz * dz);
-    if (len > 0.3) {
-      dx /= len;
-      dz /= len;
-    } else {
-      dx = 0;
-      dz = -1;
-    }
+    // Use all players list directly — more reliable than syncPairs
+    const allPlayers = this.game._allPlayers || [];
+    for (const p of allPlayers) {
+      if (!p.ragdoll || !p.alive) continue;
+      const theirBody = p.ragdoll.bodies.torso;
+      if (!theirBody || theirBody === myBody) continue;
 
-    // Check all other physics bodies in range
-    for (const pair of this.game.syncPairs) {
-      const body = pair.body;
-      if (body === myBody || body.mass === 0) continue;
-
-      const dist = myPos.distanceTo(body.position);
+      const dist = myPos.distanceTo(theirBody.position);
       if (dist < this.attackRange) {
-        // Apply knockback impulse away from attacker
+        // Knockback direction: away from attacker
         const knockDir = new CANNON.Vec3(
-          body.position.x - myPos.x,
-          0.5,
-          body.position.z - myPos.z
+          theirBody.position.x - myPos.x,
+          0.3,
+          theirBody.position.z - myPos.z
         );
-        knockDir.normalize();
-        body.applyImpulse(new CANNON.Vec3(
+        if (knockDir.length() > 0.01) knockDir.normalize();
+        else knockDir.set(1, 0.3, 0); // default direction if overlapping
+
+        theirBody.applyImpulse(new CANNON.Vec3(
           knockDir.x * impulse,
-          knockDir.y * impulse * 0.5,
+          knockDir.y * impulse,
           knockDir.z * impulse
         ));
 
-        // Apply damage if the target has a balance system
-        // Find the ragdoll that owns this body
-        for (const p of (this.game._allPlayers || [])) {
-          if (p.ragdoll && p.ragdoll.bodies.torso === body) {
-            p.ragdoll.balance.takeDamage(damageAmount);
-            break;
-          }
-        }
+        p.ragdoll.balance.takeDamage(damageAmount);
       }
     }
   }
 
   isGrounded() {
     const torso = this.ragdoll.getTorso();
-    return torso.position.y < 1.2;
+    // Sphere bottom is at y - 0.55 (radius 0.35 + offset 0.2)
+    // Ground is at y = 0, so grounded when torso.y < ~0.8
+    return torso.position.y < 0.9;
   }
 
   tryGrab() {
@@ -128,12 +140,15 @@ export class CharacterController {
     const myBody = this.ragdoll.getTorso();
     const myPos = myBody.position;
 
-    for (const pair of this.game.syncPairs) {
-      const body = pair.body;
-      if (body === myBody || body.mass === 0) continue;
-      const dist = myPos.distanceTo(body.position);
-      if (dist < 1.5) {
-        this.grabConstraint = new CANNON.DistanceConstraint(myBody, body, dist);
+    const allPlayers = this.game._allPlayers || [];
+    for (const p of allPlayers) {
+      if (!p.ragdoll || !p.alive) continue;
+      const theirBody = p.ragdoll.bodies.torso;
+      if (!theirBody || theirBody === myBody) continue;
+
+      const dist = myPos.distanceTo(theirBody.position);
+      if (dist < 2.0) {
+        this.grabConstraint = new CANNON.DistanceConstraint(myBody, theirBody, dist);
         this.game.world.addConstraint(this.grabConstraint);
         return;
       }
