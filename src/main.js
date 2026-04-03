@@ -1,5 +1,10 @@
 import { GameApp } from './GameApp.js';
+import { startTestMode } from './testMode.js';
 
-const app = new GameApp();
-window.__app = app; // debug access
-app.start();
+if (window.location.search.includes('test')) {
+  startTestMode();
+} else {
+  const app = new GameApp();
+  window.__app = app;
+  app.start();
+}
