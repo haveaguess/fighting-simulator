@@ -77,6 +77,7 @@ export class Ragdoll {
     // Facing direction (smoothed)
     this.facingAngle = 0;
     this.grabTarget = null; // set by controller when grabbing
+    this.grabReaching = false; // true when grab button held but not connected yet
 
     // Arms
     const armMat = mat.clone();
@@ -215,6 +216,13 @@ export class Ragdoll {
         laHandZ = z + gnz * 0.55;
         laHandY = armY - 0.05;
       }
+    } else if (this.grabReaching) {
+      // Reaching out to grab — extend left arm forward (toward facing direction)
+      laX = x + sin * 0.35;
+      laZ = z + cos * 0.35;
+      laHandX = x + sin * 0.6;
+      laHandZ = z + cos * 0.6;
+      laHandY = armY - 0.05;
     }
 
     // Right arm (right side)

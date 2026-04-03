@@ -134,9 +134,12 @@ export class CharacterController {
         this._hitNearby(this.headbuttImpulse, 25);
       }
 
-      // Try to grab
+      // Try to grab — show reaching arm while button held
       if (actions[Actions.GRAB]) {
+        this.ragdoll.grabReaching = true;
         this.tryGrab();
+      } else {
+        this.ragdoll.grabReaching = false;
       }
     }
 
