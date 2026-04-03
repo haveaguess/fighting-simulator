@@ -11,11 +11,11 @@ export class CharacterController {
     this.headbuttCooldown = 0;
     this.grabConstraint = null;
 
-    this.moveForce = 25;
-    this.jumpImpulse = 8;
-    this.punchImpulse = 15;
-    this.kickImpulse = 12;
-    this.headbuttImpulse = 10;
+    this.moveForce = 80;
+    this.jumpImpulse = 14;
+    this.punchImpulse = 20;
+    this.kickImpulse = 18;
+    this.headbuttImpulse = 15;
   }
 
   update(dt, actions) {
@@ -84,8 +84,16 @@ export class CharacterController {
   }
 
   isGrounded() {
+    // Check if any lower leg or torso is near the ground
     const torso = this.ragdoll.getTorso();
-    return torso.position.y < 2.0;
+    const leftFoot = this.ragdoll.bodies.leftLowerLeg;
+    const rightFoot = this.ragdoll.bodies.rightLowerLeg;
+    const lowestY = Math.min(
+      torso.position.y,
+      leftFoot ? leftFoot.position.y : torso.position.y,
+      rightFoot ? rightFoot.position.y : torso.position.y
+    );
+    return lowestY < 1.5;
   }
 
   tryGrab() {

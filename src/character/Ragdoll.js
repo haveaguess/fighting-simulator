@@ -13,7 +13,7 @@ export class Ragdoll {
     const px = position.x;
     const py = position.y;
     const pz = position.z;
-    const damping = 0.4;
+    const damping = 0.3;
 
     // Helper to create a body+mesh pair
     const createPart = (name, shape, geo, mass, x, y, z) => {
