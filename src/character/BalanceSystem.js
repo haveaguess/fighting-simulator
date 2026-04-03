@@ -38,8 +38,8 @@ export class BalanceSystem {
 
     const damageMultiplier = 1 - (this.damage / 100) * 0.8;
 
-    // --- FORCE UPRIGHT QUATERNION ---
-    // Extract current yaw only, discard pitch and roll entirely
+    // === TORSO: FORCE UPRIGHT ===
+    // Extract yaw, discard pitch/roll
     const forward = new CANNON.Vec3(0, 0, 1);
     torso.quaternion.vmult(forward, forward);
     forward.y = 0;
@@ -47,13 +47,10 @@ export class BalanceSystem {
     forward.normalize();
     const yaw = Math.atan2(forward.x, forward.z);
 
-    // Directly set quaternion to upright with current yaw
-    // At 0 damage: fully forced upright
-    // At high damage: partially forced (wobbly)
+    // Set quaternion to upright with current yaw
     const targetQuat = new CANNON.Quaternion();
     targetQuat.setFromAxisAngle(new CANNON.Vec3(0, 1, 0), yaw);
 
-    // Blend: at 0 damage, 100% forced upright. At 100 damage, only 20% forced.
     const strength = damageMultiplier;
     torso.quaternion.x = torso.quaternion.x * (1 - strength) + targetQuat.x * strength;
     torso.quaternion.y = torso.quaternion.y * (1 - strength) + targetQuat.y * strength;
@@ -61,17 +58,57 @@ export class BalanceSystem {
     torso.quaternion.w = torso.quaternion.w * (1 - strength) + targetQuat.w * strength;
     torso.quaternion.normalize();
 
-    // Kill pitch/roll angular velocity completely
+    // Kill pitch/roll spin
     torso.angularVelocity.x *= 0.5;
     torso.angularVelocity.z *= 0.5;
 
-    // --- MINIMUM HEIGHT ---
-    // Ensure torso doesn't sink below standing height
-    // The torso center should be about 0.75 above the ground (y=0)
-    const minY = 0.75;
-    if (torso.position.y < minY) {
-      torso.position.y = minY;
-      if (torso.velocity.y < 0) torso.velocity.y = 0;
+    // === LEGS: PULL UNDER TORSO ===
+    // Each leg should be roughly below the torso hip position
+    const tx = torso.position.x;
+    const tz = torso.position.z;
+
+    const legParts = [
+      { upper: 'leftUpperLeg', lower: 'leftLowerLeg', offsetX: -0.18 },
+      { upper: 'rightUpperLeg', lower: 'rightLowerLeg', offsetX: 0.18 },
+    ];
+
+    for (const leg of legParts) {
+      const upper = this.ragdoll.bodies[leg.upper];
+      const lower = this.ragdoll.bodies[leg.lower];
+      if (!upper || !lower) continue;
+
+      // Pull upper leg toward position below hip
+      const targetX = tx + leg.offsetX;
+      const targetZ = tz;
+      const pullStrength = 15 * damageMultiplier;
+
+      const dxU = targetX - upper.position.x;
+      const dzU = targetZ - upper.position.z;
+      upper.applyForce(new CANNON.Vec3(dxU * pullStrength, 0, dzU * pullStrength));
+
+      // Pull lower leg toward position below upper leg
+      const dxL = upper.position.x - lower.position.x;
+      const dzL = upper.position.z - lower.position.z;
+      lower.applyForce(new CANNON.Vec3(dxL * pullStrength, -5, dzL * pullStrength));
+    }
+
+    // === ARMS: SLIGHT PULL TOWARD SIDES ===
+    const armParts = [
+      { upper: 'leftUpperArm', lower: 'leftLowerArm', offsetX: -0.4 },
+      { upper: 'rightUpperArm', lower: 'rightLowerArm', offsetX: 0.4 },
+    ];
+
+    for (const arm of armParts) {
+      const upper = this.ragdoll.bodies[arm.upper];
+      if (!upper) continue;
+
+      const targetX = tx + arm.offsetX;
+      const targetZ = tz;
+      const pullStrength = 5 * damageMultiplier;
+
+      const dx = targetX - upper.position.x;
+      const dz = targetZ - upper.position.z;
+      upper.applyForce(new CANNON.Vec3(dx * pullStrength, 0, dz * pullStrength));
     }
   }
 }
