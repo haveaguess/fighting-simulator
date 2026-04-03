@@ -252,12 +252,43 @@ export class GameApp {
         this.audio.playWin();
       }
       if (state === 'gameOver') {
-        this.hud.showCenter(`GAME OVER - Wave ${data.wave}!`);
         this.audio.playEliminated();
-        setTimeout(() => {
-          this.cleanup();
-          this.showTitle();
-        }, 5000);
+        this.audio.stopMusic();
+        // Show game over with continue option
+        const wave = data.wave;
+        const usedContinue = this._wavesUsedContinue || false;
+        let msg = `GAME OVER - Wave ${wave}`;
+        if (!usedContinue) {
+          msg += '\nPress ENTER to continue, ESC to quit';
+        } else {
+          msg += '\nPress ENTER to restart from Wave 1';
+        }
+        this.hud.showCenter(msg);
+
+        const handler = (e) => {
+          if (e.code === 'Enter') {
+            window.removeEventListener('keydown', handler);
+            this.hud.hideCenter();
+            if (!usedContinue) {
+              // Continue from current wave
+              this._wavesUsedContinue = true;
+              this.wavesManager.nextWave();
+              this.audio.startMusic();
+            } else {
+              // Restart from wave 1
+              this._wavesUsedContinue = false;
+              this.wavesManager.wave = 0;
+              this.wavesManager.nextWave();
+              this.audio.startMusic();
+            }
+          }
+          if (e.code === 'Escape') {
+            window.removeEventListener(handler);
+            this.cleanup();
+            this.showTitle();
+          }
+        };
+        window.addEventListener('keydown', handler);
       }
     };
 
@@ -300,14 +331,12 @@ export class GameApp {
       this._gameCallbacks = [];
     }
 
-    // Clean up waves enemies
+    // Clean up waves
     if (this.wavesManager) {
-      this.wavesManager.clearEnemies();
-      if (this.wavesManager._updateCallback) {
-        this.game.removeOnUpdate(this.wavesManager._updateCallback);
-      }
+      this.wavesManager.destroy();
       this.wavesManager = null;
     }
+    this._wavesUsedContinue = false;
 
     this.audio.stopMusic();
     this.audio.stopDishWhir();
