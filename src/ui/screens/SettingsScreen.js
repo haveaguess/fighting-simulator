@@ -96,15 +96,18 @@ export class SettingsScreen {
 
     const kbPlayers = this.getKeyboardPlayers();
 
-    let html = `<h2 style="font-size: 40px; margin-bottom: 20px;">SETTINGS</h2>`;
+    let html = `<h2 style="font-size: 36px; margin-bottom: 16px;">SETTINGS</h2>`;
 
     if (kbPlayers.length === 0) {
       html += `<p style="font-size: 18px; opacity: 0.7;">No keyboard players registered yet. Join a game first.</p>`;
     }
 
+    // Side by side layout
+    html += `<div style="display: flex; gap: 20px; justify-content: center; align-items: flex-start; flex-wrap: wrap;">`;
+
     for (const kbPlayer of kbPlayers) {
-      html += `<div style="margin-bottom: 30px; background: rgba(255,255,255,0.05); padding: 20px; border-radius: 12px; min-width: 400px;">`;
-      html += `<h3 style="font-size: 24px; margin-bottom: 12px;">Player ${kbPlayer.index + 1} Controls</h3>`;
+      html += `<div style="background: rgba(255,255,255,0.05); padding: 16px; border-radius: 12px; min-width: 280px;">`;
+      html += `<h3 style="font-size: 20px; margin-bottom: 10px; text-align: center;">Player ${kbPlayer.index + 1}</h3>`;
       html += `<table style="width: 100%; border-collapse: collapse;">`;
 
       for (const action of Object.keys(ACTION_LABELS)) {
@@ -114,22 +117,22 @@ export class SettingsScreen {
           this.listeningFor.action === action;
 
         html += `
-          <tr style="border-bottom: 1px solid rgba(255,255,255,0.1);">
-            <td style="padding: 8px 12px; font-size: 16px;">${ACTION_LABELS[action]}</td>
-            <td style="padding: 8px 12px; text-align: right;">
+          <tr style="border-bottom: 1px solid rgba(255,255,255,0.08);">
+            <td style="padding: 5px 8px; font-size: 14px;">${ACTION_LABELS[action]}</td>
+            <td style="padding: 5px 8px; text-align: right;">
               <button
                 data-player="${kbPlayer.index}"
                 data-action="${action}"
                 style="
                   background: ${isListening ? '#ff6644' : 'rgba(255,255,255,0.15)'};
                   color: white; border: 2px solid ${isListening ? '#ff6644' : '#555'};
-                  padding: 6px 16px; border-radius: 6px;
+                  padding: 4px 12px; border-radius: 6px;
                   font-family: 'Arial Black', Arial, sans-serif;
-                  font-size: 14px; cursor: pointer; min-width: 80px;
+                  font-size: 13px; cursor: pointer; min-width: 70px;
                   transition: all 0.15s;
                 "
               >
-                ${isListening ? 'Press a key...' : keyName(currentKey)}
+                ${isListening ? 'Press key...' : keyName(currentKey)}
               </button>
             </td>
           </tr>
@@ -139,7 +142,8 @@ export class SettingsScreen {
       html += `</table></div>`;
     }
 
-    html += `<p style="font-size: 14px; opacity: 0.5; margin-top: 10px;">Click a button to rebind. Press ESC to close.</p>`;
+    html += `</div>`;
+    html += `<p style="font-size: 13px; opacity: 0.5; margin-top: 12px;">Click a button to rebind. Press ESC to close.</p>`;
 
     this.element.innerHTML = html;
 

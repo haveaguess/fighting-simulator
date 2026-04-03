@@ -76,15 +76,15 @@ export function startBrawlMode() {
   };
   match.startMatch();
 
-  // Persistent controls display
+  // Persistent controls display — top left so it doesn't cover settings
   const controlsDiv = document.createElement('div');
   controlsDiv.style.cssText = `
-    position: fixed; bottom: 10px; left: 50%; transform: translateX(-50%);
+    position: fixed; top: 60px; left: 10px;
     background: rgba(0,0,0,0.75); color: #ddd;
-    font-family: 'Arial', sans-serif; font-size: 13px;
-    padding: 10px 20px; border-radius: 10px;
-    z-index: 1000; pointer-events: none; text-align: center;
-    line-height: 1.6;
+    font-family: 'Arial', sans-serif; font-size: 11px;
+    padding: 8px 12px; border-radius: 8px;
+    z-index: 1000; pointer-events: none; text-align: left;
+    line-height: 1.5;
   `;
   controlsDiv.innerHTML = `
     <div style="display:flex; gap: 40px; justify-content: center;">
