@@ -41,7 +41,7 @@ export class GameApp {
     this.damageSystem = null;
     this.audio = new AudioManager();
     this.cameraController = null;
-    this.pause = new PauseMenu(this.game);
+    this.pause = new PauseMenu(this.game, this.input);
   }
 
   start() {
@@ -115,6 +115,7 @@ export class GameApp {
       const color = PLAYER_COLORS[this.players.length];
       const p = new Player(this.game, this.input, idx, spawnPoints[this.players.length], color);
       const costumeKey = costumeChoices[humanIndex] || COSTUME_KEYS[0];
+      p.costumeKey = costumeKey;
       applyCostume(p.ragdoll, costumeKey);
       this.damageSystem.register(p.ragdoll);
       this.players.push(p);
@@ -127,6 +128,7 @@ export class GameApp {
       const ai = new AIPlayer(this.game, this.players, spawnPoints[this.players.length], color);
       ai.isAI = true;
       const randomCostume = COSTUME_KEYS[Math.floor(Math.random() * COSTUME_KEYS.length)];
+      ai.costumeKey = randomCostume;
       applyCostume(ai.ragdoll, randomCostume);
       this.damageSystem.register(ai.ragdoll);
       this.players.push(ai);

@@ -1,6 +1,7 @@
 import { Ragdoll } from './Ragdoll.js';
 import { CharacterController } from './CharacterController.js';
 import { AIController as AI } from '../ai/AIController.js';
+import { applyCostume } from './Costumes.js';
 
 export class AIPlayer {
   constructor(game, allPlayers, position, color) {
@@ -10,6 +11,7 @@ export class AIPlayer {
     this.roundWins = 0;
     this.isAI = true;
     this.color = color;
+    this.costumeKey = null;
 
     this.ragdoll = new Ragdoll(game, position, color);
     this.controller = new CharacterController(this.ragdoll, game);
@@ -32,6 +34,7 @@ export class AIPlayer {
     this.ragdoll.destroy();
     this.ragdoll = new Ragdoll(this.game, position, this.color);
     this.controller = new CharacterController(this.ragdoll, this.game);
+    if (this.costumeKey) applyCostume(this.ragdoll, this.costumeKey);
     this.alive = true;
   }
 

@@ -5,8 +5,8 @@ import { BalanceSystem } from './BalanceSystem.js';
 export class Ragdoll {
   constructor(game, position, color) {
     this.game = game;
-    this.bodies = [];
-    this.meshes = [];
+    this.bodies = {};
+    this.meshes = {};
     this.constraints = [];
 
     const mat = new THREE.MeshStandardMaterial({ color });
@@ -16,38 +16,38 @@ export class Ragdoll {
     const damping = 0.4;
 
     // Helper to create a body+mesh pair
-    const createPart = (shape, geo, mass, x, y, z) => {
+    const createPart = (name, shape, geo, mass, x, y, z) => {
       const body = new CANNON.Body({ mass, shape, linearDamping: damping, angularDamping: damping });
       body.position.set(x, y, z);
       game.world.addBody(body);
 
-      const mesh = new THREE.Mesh(geo, mat);
+      const mesh = new THREE.Mesh(geo, mat.clone());
       mesh.castShadow = true;
       game.scene.add(mesh);
       game.addSyncPair(body, mesh);
 
-      this.bodies.push(body);
-      this.meshes.push(mesh);
+      this.bodies[name] = body;
+      this.meshes[name] = mesh;
       return body;
     };
 
-    // --- Torso (core, index 0) ---
+    // --- Torso (core) ---
     const torsoHW = [0.4, 0.6, 0.25]; // half-extents
-    this.torso = createPart(
+    createPart('torso',
       new CANNON.Box(new CANNON.Vec3(...torsoHW)),
       new THREE.BoxGeometry(0.8, 1.2, 0.5),
       5, px, py, pz
     );
 
-    // --- Head (index 1) ---
-    this.head = createPart(
+    // --- Head ---
+    createPart('head',
       new CANNON.Sphere(0.3),
       new THREE.SphereGeometry(0.3, 16, 16),
       1, px, py + 0.9, pz
     );
 
     // Neck constraint — ConeTwist, PI/6 swing
-    const neckConstraint = new CANNON.ConeTwistConstraint(this.torso, this.head, {
+    const neckConstraint = new CANNON.ConeTwistConstraint(this.bodies.torso, this.bodies.head, {
       pivotA: new CANNON.Vec3(0, 0.6, 0),
       pivotB: new CANNON.Vec3(0, -0.3, 0),
       axisA: new CANNON.Vec3(0, 1, 0),
@@ -63,12 +63,12 @@ export class Ragdoll {
     const upperArmGeo = new THREE.BoxGeometry(0.24, 0.6, 0.24);
 
     // Left upper arm
-    this.leftUpperArm = createPart(
+    createPart('leftUpperArm',
       new CANNON.Box(new CANNON.Vec3(...upperArmHW)),
       upperArmGeo, 1, px - 0.52, py + 0.3, pz
     );
 
-    const leftShoulderConstraint = new CANNON.ConeTwistConstraint(this.torso, this.leftUpperArm, {
+    const leftShoulderConstraint = new CANNON.ConeTwistConstraint(this.bodies.torso, this.bodies.leftUpperArm, {
       pivotA: new CANNON.Vec3(-0.4, 0.6, 0),
       pivotB: new CANNON.Vec3(0, 0.3, 0),
       axisA: new CANNON.Vec3(-1, 0, 0),
@@ -80,12 +80,12 @@ export class Ragdoll {
     this.constraints.push(leftShoulderConstraint);
 
     // Right upper arm
-    this.rightUpperArm = createPart(
+    createPart('rightUpperArm',
       new CANNON.Box(new CANNON.Vec3(...upperArmHW)),
       upperArmGeo, 1, px + 0.52, py + 0.3, pz
     );
 
-    const rightShoulderConstraint = new CANNON.ConeTwistConstraint(this.torso, this.rightUpperArm, {
+    const rightShoulderConstraint = new CANNON.ConeTwistConstraint(this.bodies.torso, this.bodies.rightUpperArm, {
       pivotA: new CANNON.Vec3(0.4, 0.6, 0),
       pivotB: new CANNON.Vec3(0, 0.3, 0),
       axisA: new CANNON.Vec3(1, 0, 0),
@@ -101,12 +101,12 @@ export class Ragdoll {
     const lowerArmGeo = new THREE.BoxGeometry(0.2, 0.56, 0.2);
 
     // Left lower arm
-    this.leftLowerArm = createPart(
+    createPart('leftLowerArm',
       new CANNON.Box(new CANNON.Vec3(...lowerArmHW)),
       lowerArmGeo, 0.8, px - 0.52, py - 0.3, pz
     );
 
-    const leftElbowConstraint = new CANNON.HingeConstraint(this.leftUpperArm, this.leftLowerArm, {
+    const leftElbowConstraint = new CANNON.HingeConstraint(this.bodies.leftUpperArm, this.bodies.leftLowerArm, {
       pivotA: new CANNON.Vec3(0, -0.3, 0),
       pivotB: new CANNON.Vec3(0, 0.28, 0),
       axisA: new CANNON.Vec3(1, 0, 0),
@@ -120,12 +120,12 @@ export class Ragdoll {
     leftElbowConstraint.equations[0].maxForce = 1e6;
 
     // Right lower arm
-    this.rightLowerArm = createPart(
+    createPart('rightLowerArm',
       new CANNON.Box(new CANNON.Vec3(...lowerArmHW)),
       lowerArmGeo, 0.8, px + 0.52, py - 0.3, pz
     );
 
-    const rightElbowConstraint = new CANNON.HingeConstraint(this.rightUpperArm, this.rightLowerArm, {
+    const rightElbowConstraint = new CANNON.HingeConstraint(this.bodies.rightUpperArm, this.bodies.rightLowerArm, {
       pivotA: new CANNON.Vec3(0, -0.3, 0),
       pivotB: new CANNON.Vec3(0, 0.28, 0),
       axisA: new CANNON.Vec3(1, 0, 0),
@@ -140,12 +140,12 @@ export class Ragdoll {
     const upperLegGeo = new THREE.BoxGeometry(0.28, 0.6, 0.28);
 
     // Left upper leg
-    this.leftUpperLeg = createPart(
+    createPart('leftUpperLeg',
       new CANNON.Box(new CANNON.Vec3(...upperLegHW)),
       upperLegGeo, 1.5, px - 0.2, py - 0.9, pz
     );
 
-    const leftHipConstraint = new CANNON.ConeTwistConstraint(this.torso, this.leftUpperLeg, {
+    const leftHipConstraint = new CANNON.ConeTwistConstraint(this.bodies.torso, this.bodies.leftUpperLeg, {
       pivotA: new CANNON.Vec3(-0.2, -0.6, 0),
       pivotB: new CANNON.Vec3(0, 0.3, 0),
       axisA: new CANNON.Vec3(0, -1, 0),
@@ -157,12 +157,12 @@ export class Ragdoll {
     this.constraints.push(leftHipConstraint);
 
     // Right upper leg
-    this.rightUpperLeg = createPart(
+    createPart('rightUpperLeg',
       new CANNON.Box(new CANNON.Vec3(...upperLegHW)),
       upperLegGeo, 1.5, px + 0.2, py - 0.9, pz
     );
 
-    const rightHipConstraint = new CANNON.ConeTwistConstraint(this.torso, this.rightUpperLeg, {
+    const rightHipConstraint = new CANNON.ConeTwistConstraint(this.bodies.torso, this.bodies.rightUpperLeg, {
       pivotA: new CANNON.Vec3(0.2, -0.6, 0),
       pivotB: new CANNON.Vec3(0, 0.3, 0),
       axisA: new CANNON.Vec3(0, -1, 0),
@@ -178,12 +178,12 @@ export class Ragdoll {
     const lowerLegGeo = new THREE.BoxGeometry(0.24, 0.6, 0.24);
 
     // Left lower leg
-    this.leftLowerLeg = createPart(
+    createPart('leftLowerLeg',
       new CANNON.Box(new CANNON.Vec3(...lowerLegHW)),
       lowerLegGeo, 1, px - 0.2, py - 1.5, pz
     );
 
-    const leftKneeConstraint = new CANNON.HingeConstraint(this.leftUpperLeg, this.leftLowerLeg, {
+    const leftKneeConstraint = new CANNON.HingeConstraint(this.bodies.leftUpperLeg, this.bodies.leftLowerLeg, {
       pivotA: new CANNON.Vec3(0, -0.3, 0),
       pivotB: new CANNON.Vec3(0, 0.3, 0),
       axisA: new CANNON.Vec3(1, 0, 0),
@@ -194,12 +194,12 @@ export class Ragdoll {
     this.constraints.push(leftKneeConstraint);
 
     // Right lower leg
-    this.rightLowerLeg = createPart(
+    createPart('rightLowerLeg',
       new CANNON.Box(new CANNON.Vec3(...lowerLegHW)),
       lowerLegGeo, 1, px + 0.2, py - 1.5, pz
     );
 
-    const rightKneeConstraint = new CANNON.HingeConstraint(this.rightUpperLeg, this.rightLowerLeg, {
+    const rightKneeConstraint = new CANNON.HingeConstraint(this.bodies.rightUpperLeg, this.bodies.rightLowerLeg, {
       pivotA: new CANNON.Vec3(0, -0.3, 0),
       pivotB: new CANNON.Vec3(0, 0.3, 0),
       axisA: new CANNON.Vec3(1, 0, 0),
@@ -214,15 +214,15 @@ export class Ragdoll {
   }
 
   getTorso() {
-    return this.torso;
+    return this.bodies.torso;
   }
 
   getHead() {
-    return this.head;
+    return this.bodies.head;
   }
 
   getPosition() {
-    const p = this.torso.position;
+    const p = this.bodies.torso.position;
     return { x: p.x, y: p.y, z: p.z };
   }
 
@@ -234,15 +234,15 @@ export class Ragdoll {
     this.constraints.length = 0;
 
     // Remove bodies, sync pairs, and meshes
-    for (let i = 0; i < this.bodies.length; i++) {
-      const body = this.bodies[i];
-      const mesh = this.meshes[i];
+    for (const name of Object.keys(this.bodies)) {
+      const body = this.bodies[name];
+      const mesh = this.meshes[name];
       this.game.removeSyncPair(body);
       this.game.world.removeBody(body);
       this.game.scene.remove(mesh);
       if (mesh.geometry) mesh.geometry.dispose();
     }
-    this.bodies.length = 0;
-    this.meshes.length = 0;
+    this.bodies = {};
+    this.meshes = {};
   }
 }

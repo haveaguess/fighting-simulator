@@ -1,5 +1,6 @@
 import { Ragdoll } from './Ragdoll.js';
 import { CharacterController } from './CharacterController.js';
+import { applyCostume } from './Costumes.js';
 
 export class Player {
   constructor(game, inputManager, playerIndex, position, color) {
@@ -9,6 +10,7 @@ export class Player {
     this.alive = true;
     this.roundWins = 0;
     this.color = color;
+    this.costumeKey = null;
 
     this.ragdoll = new Ragdoll(game, position, color);
     this.controller = new CharacterController(this.ragdoll, game);
@@ -31,6 +33,7 @@ export class Player {
     this.ragdoll.destroy();
     this.ragdoll = new Ragdoll(this.game, position, this.color);
     this.controller = new CharacterController(this.ragdoll, this.game);
+    if (this.costumeKey) applyCostume(this.ragdoll, this.costumeKey);
     this.alive = true;
   }
 
