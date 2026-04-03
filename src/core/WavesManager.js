@@ -1,10 +1,14 @@
 import { AIPlayer } from '../character/AIPlayer.js';
 import { applyCostume, COSTUME_KEYS } from '../character/Costumes.js';
 
+// Enemy costumes — dark red tinted so they're obviously enemies
 const ENEMY_COLORS = [
   0xaa0000, 0x880000, 0x660000, 0xcc2200,
   0x990000, 0xbb1100, 0x771100, 0xdd3300,
 ];
+
+// Costumes reserved for enemies only (not used by humans)
+const ENEMY_COSTUMES = ['ninja', 'robot', 'pirate', 'dinosaur'];
 
 export class WavesManager {
   constructor(game, humanPlayers, arena, damageSystem, hud, audio) {
@@ -17,10 +21,16 @@ export class WavesManager {
 
     this.wave = 0;
     this.enemies = [];
-    this.allEntities = [...humanPlayers]; // humans + current enemies
-    this.state = 'waiting'; // waiting, countdown, fighting, waveComplete, gameOver
+    this.allEntities = [...humanPlayers];
+    this.state = 'waiting';
     this.timer = 0;
     this.onStateChange = null;
+
+    // Set human players to team 'human'
+    for (const p of humanPlayers) {
+      p.team = 'human';
+      p.controller.team = 'human';
+    }
 
     this._updateCallback = game.onUpdate((dt) => this.update(dt));
   }
@@ -35,27 +45,35 @@ export class WavesManager {
     this.state = 'countdown';
     this.timer = 3;
 
-    // Reset human players
     const spawnPoints = this.getHumanSpawns();
     for (let i = 0; i < this.humanPlayers.length; i++) {
       this.humanPlayers[i].reset(spawnPoints[i]);
+      // Re-set team after reset
+      this.humanPlayers[i].team = 'human';
+      this.humanPlayers[i].controller.team = 'human';
     }
 
-    // Clean up old enemies
     this.clearEnemies();
 
     if (this.onStateChange) this.onStateChange('waveStart', { wave: this.wave });
   }
 
   spawnEnemies() {
-    const count = Math.min(this.wave + 1, 8); // wave 1 = 2 enemies, wave 2 = 3, up to 8
+    const count = Math.min(this.wave + 1, 8);
     const spawnPoints = this.getEnemySpawns(count);
 
     for (let i = 0; i < count; i++) {
       const color = ENEMY_COLORS[i % ENEMY_COLORS.length];
       const ai = new AIPlayer(this.game, this.allEntities, spawnPoints[i], color, this.audio);
       ai.isAI = true;
-      const costume = COSTUME_KEYS[Math.floor(Math.random() * COSTUME_KEYS.length)];
+      ai.team = 'enemy';
+      ai.controller.team = 'enemy';
+
+      // AI only targets humans
+      ai.ai.targetTeam = 'human';
+
+      // Pick enemy costume (never same as human players)
+      const costume = ENEMY_COSTUMES[i % ENEMY_COSTUMES.length];
       ai.costumeKey = costume;
       ai.damageSystem = this.damageSystem;
       applyCostume(ai.ragdoll, costume);
@@ -64,7 +82,6 @@ export class WavesManager {
       this.allEntities.push(ai);
     }
 
-    // Update all AI references
     this.game._allPlayers = this.allEntities;
     for (const e of this.enemies) {
       e.allPlayers = this.allEntities;
@@ -118,7 +135,6 @@ export class WavesManager {
     }
 
     if (this.state === 'fighting') {
-      // Check if all enemies are eliminated (fell off)
       const aliveEnemies = this.enemies.filter(e => e.alive);
       const aliveHumans = this.humanPlayers.filter(p => p.alive);
 

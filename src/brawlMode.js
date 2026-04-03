@@ -27,10 +27,10 @@ export function startBrawlMode() {
   const arena = new Rooftop(game);
   game.onUpdate((dt) => arena.update(dt));
 
-  // P1 (green wrestler) vs P2 (red luchador)
+  // P1 (astronaut) vs P2 (chicken)
   const p1 = new Player(game, input, 0, { x: -4, y: 1.5, z: 0 }, 0x44ff44, audio);
-  applyCostume(p1.ragdoll, 'wrestler');
-  p1.costumeKey = 'wrestler';
+  applyCostume(p1.ragdoll, 'astronaut');
+  p1.costumeKey = 'astronaut';
 
   // Chicken audio — wraps the normal audio with chicken sounds
   const chickenAudio = {

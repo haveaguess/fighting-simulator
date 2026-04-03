@@ -11,14 +11,24 @@ export class CameraController {
   }
 
   update(dt, players) {
-    const alive = players.filter(p => p.alive);
-    if (alive.length === 0) return;
+    // Only track players who are alive and still on/near the platform
+    const relevant = players.filter(p => {
+      if (!p.alive) return false;
+      const pos = p.ragdoll.getPosition();
+      // Ignore players falling off — below platform level
+      if (pos.y < -3) return false;
+      // Ignore players way too far from center (guaranteed dead)
+      if (Math.abs(pos.x) > 25 || Math.abs(pos.z) > 25) return false;
+      return true;
+    });
+
+    if (relevant.length === 0) return;
 
     let minX = Infinity, maxX = -Infinity;
     let minZ = Infinity, maxZ = -Infinity;
     let avgY = 0;
 
-    for (const p of alive) {
+    for (const p of relevant) {
       const pos = p.ragdoll.getPosition();
       minX = Math.min(minX, pos.x);
       maxX = Math.max(maxX, pos.x);
@@ -29,7 +39,7 @@ export class CameraController {
 
     const centerX = (minX + maxX) / 2;
     const centerZ = (minZ + maxZ) / 2;
-    avgY /= alive.length;
+    avgY /= relevant.length;
 
     const spread = Math.max(maxX - minX, maxZ - minZ, 5);
     const zoom = THREE.MathUtils.clamp(spread * 1.5 + 10, this.minZoom, this.maxZoom);

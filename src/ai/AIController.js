@@ -5,6 +5,7 @@ export class AIController {
     this.attackTimer = 0;
     this.thinkTimer = 0;
     this.currentDecision = {};
+    this.targetTeam = null; // if set, only attack players on this team
   }
 
   update(dt, myRagdoll, allPlayers) {
@@ -21,6 +22,8 @@ export class AIController {
     let nearestDist = Infinity;
     for (const p of allPlayers) {
       if (p.ragdoll === myRagdoll || !p.alive) continue;
+      // Only target specific team if set (for waves mode)
+      if (this.targetTeam !== null && p.team !== this.targetTeam) continue;
       const pos = p.ragdoll.getPosition();
       const dx = pos.x - myPos.x;
       const dz = pos.z - myPos.z;

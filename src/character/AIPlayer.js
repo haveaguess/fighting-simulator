@@ -26,7 +26,8 @@ export class AIPlayer {
     const actions = this.ai.update(dt, this.ragdoll, this.allPlayers);
     this.controller.update(dt, actions);
 
-    if (this.ragdoll.getPosition().y < -10) {
+    const pos = this.ragdoll.getPosition();
+    if (pos.y < -5 || Math.abs(pos.x) > 20 || Math.abs(pos.z) > 20) {
       this.alive = false;
     }
   }

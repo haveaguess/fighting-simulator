@@ -28,6 +28,7 @@ export class CharacterController {
     this.throwImpulse = 40;
     this.attackRange = 0.9;
     this.grabRange = 1.2;
+    this.team = null; // set to skip friendly fire
   }
 
   update(dt, actions) {
@@ -211,6 +212,8 @@ export class CharacterController {
       if (!p.ragdoll || !p.alive) continue;
       const theirBody = p.ragdoll.bodies.torso;
       if (!theirBody || theirBody === myBody) continue;
+      // Skip teammates
+      if (this.team !== null && p.team === this.team) continue;
 
       const dist = myPos.distanceTo(theirBody.position);
       if (dist < this.attackRange) {
@@ -252,6 +255,7 @@ export class CharacterController {
       if (!p.ragdoll || !p.alive) continue;
       const theirBody = p.ragdoll.bodies.torso;
       if (!theirBody || theirBody === myBody) continue;
+      if (this.team !== null && p.team === this.team) continue;
 
       const dist = myPos.distanceTo(theirBody.position);
       if (dist < this.grabRange) {
