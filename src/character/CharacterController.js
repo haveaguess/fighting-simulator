@@ -12,10 +12,11 @@ export class CharacterController {
     this.grabConstraint = null;
 
     this.moveForce = 80;
-    this.jumpImpulse = 14;
+    this.jumpImpulse = 12;
     this.punchImpulse = 20;
     this.kickImpulse = 18;
     this.headbuttImpulse = 15;
+    this.attackRange = 2.0;
   }
 
   update(dt, actions) {
@@ -23,7 +24,7 @@ export class CharacterController {
 
     const torso = this.ragdoll.getTorso();
 
-    // Movement
+    // Movement — apply force to main body
     const force = new CANNON.Vec3(0, 0, 0);
     if (actions[Actions.MOVE_LEFT]) force.x -= this.moveForce;
     if (actions[Actions.MOVE_RIGHT]) force.x += this.moveForce;
@@ -31,7 +32,7 @@ export class CharacterController {
     if (actions[Actions.MOVE_BACKWARD]) force.z += this.moveForce;
     torso.applyForce(force);
 
-    // Jump (only when close to ground)
+    // Jump
     if (actions[Actions.JUMP] && this.isGrounded()) {
       torso.applyImpulse(new CANNON.Vec3(0, this.jumpImpulse, 0));
     }
@@ -40,27 +41,24 @@ export class CharacterController {
     this.punchCooldown = Math.max(0, this.punchCooldown - dt);
     if (actions[Actions.PUNCH] && this.punchCooldown <= 0) {
       this.punchCooldown = 0.4;
-      const arm = this.ragdoll.bodies.rightLowerArm;
-      const dir = this.getFacingDirection();
-      arm.applyImpulse(new CANNON.Vec3(dir.x * this.punchImpulse, 2, dir.z * this.punchImpulse));
+      this.ragdoll.triggerPunch();
+      this._hitNearby(this.punchImpulse, 3);
     }
 
     // Kick
     this.kickCooldown = Math.max(0, this.kickCooldown - dt);
     if (actions[Actions.KICK] && this.kickCooldown <= 0) {
       this.kickCooldown = 0.5;
-      const leg = this.ragdoll.bodies.rightLowerLeg;
-      const dir = this.getFacingDirection();
-      leg.applyImpulse(new CANNON.Vec3(dir.x * this.kickImpulse, 1, dir.z * this.kickImpulse));
+      this.ragdoll.triggerKick();
+      this._hitNearby(this.kickImpulse, 2);
     }
 
     // Headbutt
     this.headbuttCooldown = Math.max(0, this.headbuttCooldown - dt);
     if (actions[Actions.HEADBUTT] && this.headbuttCooldown <= 0) {
       this.headbuttCooldown = 0.6;
-      const head = this.ragdoll.getHead();
-      const dir = this.getFacingDirection();
-      head.applyImpulse(new CANNON.Vec3(dir.x * this.headbuttImpulse, 0, dir.z * this.headbuttImpulse));
+      this.ragdoll.triggerHeadbutt();
+      this._hitNearby(this.headbuttImpulse, 4);
     }
 
     // Grab
@@ -71,43 +69,71 @@ export class CharacterController {
     }
   }
 
-  getFacingDirection() {
-    const torso = this.ragdoll.getTorso();
-    const forward = new CANNON.Vec3(0, 0, -1);
-    torso.quaternion.vmult(forward, forward);
-    forward.y = 0;
-    forward.normalize();
-    if (forward.length() < 0.01) {
-      forward.set(0, 0, -1);
+  _hitNearby(impulse, damageAmount) {
+    const myBody = this.ragdoll.getTorso();
+    const myPos = myBody.position;
+
+    // Find facing direction from velocity, or default forward
+    let dx = myBody.velocity.x;
+    let dz = myBody.velocity.z;
+    const len = Math.sqrt(dx * dx + dz * dz);
+    if (len > 0.3) {
+      dx /= len;
+      dz /= len;
+    } else {
+      dx = 0;
+      dz = -1;
     }
-    return forward;
+
+    // Check all other physics bodies in range
+    for (const pair of this.game.syncPairs) {
+      const body = pair.body;
+      if (body === myBody || body.mass === 0) continue;
+
+      const dist = myPos.distanceTo(body.position);
+      if (dist < this.attackRange) {
+        // Apply knockback impulse away from attacker
+        const knockDir = new CANNON.Vec3(
+          body.position.x - myPos.x,
+          0.5,
+          body.position.z - myPos.z
+        );
+        knockDir.normalize();
+        body.applyImpulse(new CANNON.Vec3(
+          knockDir.x * impulse,
+          knockDir.y * impulse * 0.5,
+          knockDir.z * impulse
+        ));
+
+        // Apply damage if the target has a balance system
+        // Find the ragdoll that owns this body
+        for (const p of (this.game._allPlayers || [])) {
+          if (p.ragdoll && p.ragdoll.bodies.torso === body) {
+            p.ragdoll.balance.takeDamage(damageAmount);
+            break;
+          }
+        }
+      }
+    }
   }
 
   isGrounded() {
-    // Check if any lower leg or torso is near the ground
     const torso = this.ragdoll.getTorso();
-    const leftFoot = this.ragdoll.bodies.leftLowerLeg;
-    const rightFoot = this.ragdoll.bodies.rightLowerLeg;
-    const lowestY = Math.min(
-      torso.position.y,
-      leftFoot ? leftFoot.position.y : torso.position.y,
-      rightFoot ? rightFoot.position.y : torso.position.y
-    );
-    return lowestY < 1.5;
+    return torso.position.y < 1.2;
   }
 
   tryGrab() {
     if (this.grabConstraint) return;
 
-    const hand = this.ragdoll.bodies.leftLowerArm;
-    const handPos = hand.position;
+    const myBody = this.ragdoll.getTorso();
+    const myPos = myBody.position;
 
     for (const pair of this.game.syncPairs) {
       const body = pair.body;
-      if (Object.values(this.ragdoll.bodies).includes(body)) continue;
-      const dist = handPos.distanceTo(body.position);
-      if (dist < 1.0 && body.mass > 0) {
-        this.grabConstraint = new CANNON.DistanceConstraint(hand, body, dist);
+      if (body === myBody || body.mass === 0) continue;
+      const dist = myPos.distanceTo(body.position);
+      if (dist < 1.5) {
+        this.grabConstraint = new CANNON.DistanceConstraint(myBody, body, dist);
         this.game.world.addConstraint(this.grabConstraint);
         return;
       }

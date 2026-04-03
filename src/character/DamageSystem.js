@@ -6,31 +6,13 @@ export class DamageSystem {
 
   register(ragdoll) {
     this.ragdolls.push(ragdoll);
-    this.setupCollisionListeners(ragdoll);
-  }
-
-  setupCollisionListeners(ragdoll) {
-    for (const [name, body] of Object.entries(ragdoll.bodies)) {
-      body.addEventListener('collide', (event) => {
-        const otherBody = event.body;
-        const impactVelocity = event.contact.getImpactVelocityAlongNormal();
-
-        if (otherBody.mass === 0) return; // static bodies
-
-        const attackerRagdoll = this.findOwner(otherBody);
-        if (!attackerRagdoll || attackerRagdoll === ragdoll) return;
-
-        const damage = Math.abs(impactVelocity) * 2;
-        if (damage > 1) {
-          ragdoll.balance.takeDamage(damage);
-        }
-      });
-    }
+    // With single-body characters, damage is handled by CharacterController._hitNearby
+    // This class now just tracks ragdolls for the system
   }
 
   findOwner(body) {
     for (const ragdoll of this.ragdolls) {
-      if (Object.values(ragdoll.bodies).includes(body)) {
+      if (ragdoll.bodies.torso === body) {
         return ragdoll;
       }
     }

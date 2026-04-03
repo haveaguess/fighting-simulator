@@ -140,7 +140,8 @@ export class GameApp {
       this.players.push(ai);
     }
 
-    // Ensure AI players have reference to all players
+    // Give all players/game reference to player list for combat targeting
+    this.game._allPlayers = this.players;
     for (const p of this.players) {
       if (p.isAI) {
         p.allPlayers = this.players;
