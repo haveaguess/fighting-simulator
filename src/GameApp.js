@@ -11,6 +11,9 @@ import { TitleScreen } from './ui/screens/TitleScreen.js';
 import { PlayerJoinScreen } from './ui/screens/PlayerJoinScreen.js';
 import { CostumeSelectScreen } from './ui/screens/CostumeSelectScreen.js';
 import { ArenaSelectScreen } from './ui/screens/ArenaSelectScreen.js';
+import { CameraController } from './core/CameraController.js';
+import { AudioManager } from './audio/AudioManager.js';
+import { PauseMenu } from './core/PauseMenu.js';
 import { Rooftop } from './arenas/Rooftop.js';
 import { Factory } from './arenas/Factory.js';
 import { WrestlingRing } from './arenas/WrestlingRing.js';
@@ -36,6 +39,9 @@ export class GameApp {
     this.hud = null;
     this.match = null;
     this.damageSystem = null;
+    this.audio = new AudioManager();
+    this.cameraController = null;
+    this.pause = new PauseMenu(this.game);
   }
 
   start() {
@@ -137,22 +143,30 @@ export class GameApp {
     this.hud = new HUD(this.players);
     this.game.onUpdate(() => this.hud.update());
 
+    // Camera controller
+    this.cameraController = new CameraController(this.game.camera);
+    this.game.onUpdate((dt) => this.cameraController.update(dt, this.players));
+
     // Match manager
     this.match = new MatchManager(this.game, this.players);
     this.match.onStateChange = (state, data) => {
       if (state === 'countdown') {
         this.hud.showCenter(Math.ceil(data.countdown).toString(), 1);
+        this.audio.playCountdown();
       }
       if (state === 'playing') {
         this.hud.showCenter('FIGHT!', 1.5);
+        this.audio.playFight();
       }
       if (state === 'roundEnd') {
         const winnerIdx = this.players.indexOf(data.winner);
         this.hud.showCenter(data.winner ? `P${winnerIdx + 1} wins the round!` : 'Draw!', 2.5);
+        if (data.winner) this.audio.playWin();
       }
       if (state === 'matchEnd') {
         const winnerIdx = this.players.indexOf(data.winner);
         this.hud.showCenter(`P${winnerIdx + 1} WINS THE MATCH!`);
+        this.audio.playWin();
         setTimeout(() => {
           this.cleanup();
           this.showTitle();
