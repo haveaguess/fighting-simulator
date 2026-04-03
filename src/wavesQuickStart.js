@@ -64,14 +64,29 @@ export function startWavesQuick() {
   const cam = new CameraController(game.camera);
   game.onUpdate((dt) => cam.update(dt, [...players, ...(wavesManager?.enemies || [])]));
 
+  // Load saved progress
+  const saved = JSON.parse(localStorage.getItem('wavesProgress') || 'null');
+  const startWave = saved?.wave || 0;
+  const startUsedContinue = saved?.usedContinue || false;
+
+  function saveProgress(wave, usedCont) {
+    localStorage.setItem('wavesProgress', JSON.stringify({ wave, usedContinue: usedCont }));
+  }
+
   // Waves manager
   const wavesManager = new WavesManager(game, players, arena, damageSystem, hud, audio);
-  let usedContinue = false;
+  let usedContinue = startUsedContinue;
+
+  // Resume from saved wave
+  if (startWave > 0) {
+    wavesManager.wave = startWave - 1; // nextWave() increments
+  }
 
   wavesManager.onStateChange = (state, data) => {
     if (state === 'waveStart') {
       hud.showCenter(`WAVE ${data.wave}`, 2);
       audio.playCountdown();
+      saveProgress(data.wave, usedContinue);
     }
     if (state === 'fight') {
       hud.showCenter('FIGHT!', 1.5);
@@ -98,16 +113,19 @@ export function startWavesQuick() {
           hud.hideCenter();
           if (!usedContinue) {
             usedContinue = true;
+            saveProgress(data.wave, usedContinue);
             wavesManager.nextWave();
           } else {
             usedContinue = false;
             wavesManager.wave = 0;
+            saveProgress(0, false);
             wavesManager.nextWave();
           }
           audio.startMusic();
         }
         if (e.code === 'Escape') {
           window.removeEventListener('keydown', handler);
+          localStorage.removeItem('wavesProgress');
           location.reload();
         }
       };

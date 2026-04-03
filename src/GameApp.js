@@ -231,15 +231,22 @@ export class GameApp {
       this.cameraController.update(dt, all);
     }));
 
-    // Waves manager
+    // Waves manager — restore saved progress
     this.wavesManager = new WavesManager(
       this.game, this.players, this.arena, this.damageSystem, this.hud, this.audio
     );
+
+    const savedWaves = JSON.parse(localStorage.getItem('wavesProgress') || 'null');
+    if (savedWaves?.wave > 0) {
+      this.wavesManager.wave = savedWaves.wave - 1;
+      this._wavesUsedContinue = savedWaves.usedContinue || false;
+    }
 
     this.wavesManager.onStateChange = (state, data) => {
       if (state === 'waveStart') {
         this.hud.showCenter(`WAVE ${data.wave}`, 2);
         this.audio.playCountdown();
+        localStorage.setItem('wavesProgress', JSON.stringify({ wave: data.wave, usedContinue: this._wavesUsedContinue || false }));
       }
       if (state === 'fight') {
         this.hud.showCenter('FIGHT!', 1.5);
@@ -283,7 +290,8 @@ export class GameApp {
             }
           }
           if (e.code === 'Escape') {
-            window.removeEventListener(handler);
+            window.removeEventListener('keydown', handler);
+            localStorage.removeItem('wavesProgress');
             this.cleanup();
             this.showTitle();
           }
