@@ -77,7 +77,8 @@ export class Game {
   start() {
     const animate = () => {
       requestAnimationFrame(animate);
-      const dt = this.clock.getDelta();
+      const rawDt = this.clock.getDelta();
+      const dt = Math.min(rawDt, 0.1); // Cap at 100ms to prevent explosion after pause
 
       // Step physics
       this.world.step(this.fixedTimeStep, dt * this.timeScale, this.maxSubSteps);
