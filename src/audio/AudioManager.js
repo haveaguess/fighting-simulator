@@ -83,6 +83,54 @@ export class AudioManager {
     setTimeout(() => this.playTone(0.4, 784, 'sine', 0, 0.25), 400);
   }
 
+  // === WHIMSICAL / LANDSLIDE SOUNDS ===
+  playDramatic() {
+    this.ensure();
+    // Dun dun DUNNNN
+    this.playTone(0.3, 200, 'sawtooth', 0, 0.3);
+    setTimeout(() => this.playTone(0.3, 180, 'sawtooth', 0, 0.3), 350);
+    setTimeout(() => this.playTone(0.6, 130, 'sawtooth', -30, 0.4), 750);
+  }
+
+  playBoing() {
+    this.ensure();
+    this.playTone(0.15, 300, 'sine', 500, 0.25);
+    setTimeout(() => this.playTone(0.1, 500, 'sine', 300, 0.2), 150);
+  }
+
+  playWhoosh() {
+    this.ensure();
+    this.playNoise(0.3, 400, 2000, 0.2);
+  }
+
+  playTinyExplosion() {
+    this.ensure();
+    this.playNoise(0.15, 200, 50, 0.35);
+    this.playTone(0.1, 100, 'sawtooth', -50, 0.25);
+  }
+
+  playMagic() {
+    this.ensure();
+    // Sparkly ascending
+    for (let i = 0; i < 5; i++) {
+      setTimeout(() => this.playTone(0.08, 800 + i * 200, 'sine', 100, 0.12), i * 60);
+    }
+  }
+
+  playTrombone() {
+    this.ensure();
+    // Wah wah wahhh
+    this.playTone(0.25, 350, 'sawtooth', 0, 0.2);
+    setTimeout(() => this.playTone(0.25, 330, 'sawtooth', 0, 0.2), 300);
+    setTimeout(() => this.playTone(0.5, 260, 'sawtooth', -40, 0.25), 650);
+  }
+
+  playRumble() {
+    this.ensure();
+    this.playNoise(0.8, 60, 40, 0.25);
+    this.playTone(0.6, 50, 'sine', -20, 0.2);
+  }
+
   // === AMBIENT / HAZARD SOUNDS ===
   startDishWhir() {
     this.ensure();

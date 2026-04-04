@@ -3,6 +3,7 @@ const ARENAS = [
   { key: 'factory', name: 'Factory', description: 'Conveyors + crushers', color: '#555555' },
   { key: 'wrestlingRing', name: 'Wrestling Ring', description: 'Bouncy ropes + electrify', color: '#336633' },
   { key: 'landslide', name: 'Volcano', description: 'Trigger eruption — lava rocks burn 30% HP', color: '#ff4400' },
+  { key: 'landslideChaos', name: 'Landslide', description: 'Press the plate... if you dare 🎲', color: '#cc6633' },
 ];
 
 export class ArenaSelectScreen {

@@ -16,6 +16,7 @@ export function startBrawlMode() {
   const game = new Game();
   const input = new InputManager();
   const audio = new AudioManager();
+  game._audio = audio;
 
   input.registerKeyboardPlayer(0, PLAYER_1_KEYS);
   input.registerKeyboardPlayer(1, PLAYER_2_KEYS);

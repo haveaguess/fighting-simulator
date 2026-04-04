@@ -21,6 +21,7 @@ import { Rooftop } from './arenas/Rooftop.js';
 import { Factory } from './arenas/Factory.js';
 import { WrestlingRing } from './arenas/WrestlingRing.js';
 import { Landslide } from './arenas/Landslide.js';
+import { LandslideChaos } from './arenas/LandslideChaos.js';
 
 const PLAYER_COLORS = [
   0xff4444, 0x4444ff, 0x44ff44, 0xffff44,
@@ -32,6 +33,7 @@ const ARENA_MAP = {
   factory: Factory,
   wrestlingRing: WrestlingRing,
   landslide: Landslide,
+  landslideChaos: LandslideChaos,
 };
 
 export class GameApp {
@@ -46,6 +48,7 @@ export class GameApp {
     this.wavesManager = null;
     this.damageSystem = null;
     this.audio = new AudioManager();
+    this.game._audio = this.audio;
     this.cameraController = null;
     this.pause = new PauseMenu(this.game, this.input);
     this.gameMode = 'melee';

@@ -12,6 +12,7 @@ export function startTestMode() {
   const game = new Game();
   const input = new InputManager();
   const audio = new AudioManager();
+  game._audio = audio;
   input.registerKeyboardPlayer(0, PLAYER_1_KEYS);
 
   // Simple flat arena — no hazards
