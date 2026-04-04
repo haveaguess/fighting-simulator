@@ -29,6 +29,18 @@ export class AIPlayer {
     const pos = this.ragdoll.getPosition();
     if (pos.y < -5 || Math.abs(pos.x) > 20 || Math.abs(pos.z) > 20) {
       this.alive = false;
+      if (window.__daddyMode && this.game._audio) {
+        const audio = this.game._audio;
+        const r = Math.random();
+        if (r < 0.33) audio.playTone(0.5, 1200, 'sine', -1000, 0.2);
+        else if (r < 0.66) {
+          audio.playTone(0.2, 120, 'sawtooth', 0, 0.2);
+          setTimeout(() => audio.playTone(0.4, 70, 'sawtooth', -20, 0.25), 300);
+        } else {
+          for (let i = 0; i < 4; i++)
+            setTimeout(() => audio.playTone(0.08, 600 - i * 80, 'square', -50, 0.15), i * 100);
+        }
+      }
     }
   }
 
