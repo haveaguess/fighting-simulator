@@ -20,6 +20,7 @@ import { PauseMenu } from './core/PauseMenu.js';
 import { Rooftop } from './arenas/Rooftop.js';
 import { Factory } from './arenas/Factory.js';
 import { WrestlingRing } from './arenas/WrestlingRing.js';
+import { Landslide } from './arenas/Landslide.js';
 
 const PLAYER_COLORS = [
   0xff4444, 0x4444ff, 0x44ff44, 0xffff44,
@@ -30,6 +31,7 @@ const ARENA_MAP = {
   rooftop: Rooftop,
   factory: Factory,
   wrestlingRing: WrestlingRing,
+  landslide: Landslide,
 };
 
 export class GameApp {
