@@ -169,21 +169,21 @@ export class Ragdoll {
 
   _createNameSprite(name) {
     const canvas = document.createElement('canvas');
-    canvas.width = 256;
-    canvas.height = 64;
+    canvas.width = 512;
+    canvas.height = 128;
     const ctx = canvas.getContext('2d');
     ctx.fillStyle = 'white';
-    ctx.font = 'bold 36px Arial';
+    ctx.font = 'bold 72px Arial';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.strokeStyle = 'black';
-    ctx.lineWidth = 4;
-    ctx.strokeText(name, 128, 32);
-    ctx.fillText(name, 128, 32);
+    ctx.lineWidth = 8;
+    ctx.strokeText(name, 256, 64);
+    ctx.fillText(name, 256, 64);
     const tex = new THREE.CanvasTexture(canvas);
     const mat = new THREE.SpriteMaterial({ map: tex, transparent: true });
     const sprite = new THREE.Sprite(mat);
-    sprite.scale.set(1.2, 0.3, 1);
+    sprite.scale.set(2.0, 0.5, 1);
     return sprite;
   }
 
@@ -400,7 +400,7 @@ export class Ragdoll {
       this.healthBarGroup.position.set(x, y + 1.0, z);
       // Name above health bar
       if (this.nameSprite) {
-        this.nameSprite.position.set(x, y + 1.15, z);
+        this.nameSprite.position.set(x, y + 1.3, z);
       }
       // Billboard — face camera
       const cam = this.game.camera;

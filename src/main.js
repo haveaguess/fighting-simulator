@@ -4,6 +4,8 @@ import { startBrawlMode } from './brawlMode.js';
 import { startWavesQuick } from './wavesQuickStart.js';
 
 const params = window.location.search;
+if (params.includes('daddy')) window.__daddyMode = true;
+
 if (params.includes('test')) {
   startTestMode();
 } else if (params.includes('waves')) {
