@@ -216,22 +216,32 @@ export class Landslide extends Arena {
         const rock = this.rocks[this.rockDropIndex];
         const mesh = this.rockMeshes[this.rockDropIndex];
 
-        // Launch from volcano crater with spread
+        // Launch from volcano crater
         const angle = Math.random() * Math.PI * 2;
-        const spread = Math.random() * 1.5;
+        const spread = Math.random() * 1;
         rock.position.set(
           Math.cos(angle) * spread,
-          9 + Math.random() * 2,
+          9 + Math.random() * 1,
           -16 + Math.sin(angle) * spread
         );
 
-        // Arc toward the platform
-        const targetX = (Math.random() - 0.5) * 18;
-        const targetZ = (Math.random() - 0.3) * 16;
+        // Target: land on the platform, biased toward the far side from the plate
+        // Platform is x:[-12,12] z:[-10,10], plate at z=-8
+        // Aim for z: -2 to +9 (away from plate), x: -8 to +8
+        const landX = (Math.random() - 0.5) * 16;
+        const landZ = -2 + Math.random() * 11;
+
+        // Calculate velocity to arc from crater to landing spot
+        // Crater is at (0, 10, -16), gravity is 9.82
+        // Use simple projectile: vx = dx/t, vy = (dy + 0.5*g*t^2)/t
+        const flightTime = 1.0 + Math.random() * 0.5;
+        const dx = landX;
+        const dz = landZ - (-16); // distance forward from crater
+        const dy = 0 - 10; // landing at y≈0, launching from y≈10
         rock.velocity.set(
-          targetX * 0.8,
-          8 + Math.random() * 6,
-          (targetZ + 16) * 0.8
+          dx / flightTime,
+          (-dy + 0.5 * 9.82 * flightTime * flightTime) / flightTime * 0.5,
+          dz / flightTime
         );
         rock.angularVelocity.set(
           Math.random() * 8, Math.random() * 8, Math.random() * 8
