@@ -2,7 +2,7 @@ const ARENAS = [
   { key: 'rooftop', name: 'Rooftop', description: 'Spinning dish + breakable ledges', color: '#888888' },
   { key: 'factory', name: 'Factory', description: 'Conveyors + crushers', color: '#555555' },
   { key: 'wrestlingRing', name: 'Wrestling Ring', description: 'Bouncy ropes + electrify', color: '#336633' },
-  { key: 'landslide', name: 'Landslide', description: 'Pressure plate triggers rock avalanche', color: '#8B7355' },
+  { key: 'landslide', name: 'Volcano', description: 'Trigger eruption — lava rocks burn 30% HP', color: '#ff4400' },
 ];
 
 export class ArenaSelectScreen {

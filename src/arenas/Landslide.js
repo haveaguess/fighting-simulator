@@ -6,88 +6,137 @@ export class Landslide extends Arena {
   constructor(game) {
     super(game);
 
-    game.scene.background = new THREE.Color(0x3a2a1a);
+    game.scene.background = new THREE.Color(0x1a0a00);
 
-    // === MAIN PLATFORM — wide canyon floor ===
-    this.addStaticBox({ x: 24, y: 1, z: 20 }, { x: 0, y: -0.5, z: 0 }, 0x8B7355);
+    // === MAIN PLATFORM — volcanic rock floor ===
+    this.addStaticBox({ x: 24, y: 1, z: 20 }, { x: 0, y: -0.5, z: 0 }, 0x3a3a3a);
 
-    // === CLIFF WALLS on sides (canyon feel) ===
-    // Left cliff
-    this.addStaticBox({ x: 2, y: 8, z: 20 }, { x: -13, y: 3, z: 0 }, 0x6B5B45);
-    // Right cliff
-    this.addStaticBox({ x: 2, y: 8, z: 20 }, { x: 13, y: 3, z: 0 }, 0x6B5B45);
+    // Lava glow underneath the edges (visual only)
+    const lavaGlow = new THREE.Mesh(
+      new THREE.PlaneGeometry(30, 26),
+      new THREE.MeshBasicMaterial({ color: 0xff3300, transparent: true, opacity: 0.3 })
+    );
+    lavaGlow.rotation.x = -Math.PI / 2;
+    lavaGlow.position.set(0, -1.5, 0);
+    game.scene.add(lavaGlow);
+    this.meshes.push(lavaGlow);
 
-    // === STEPPED PLATFORM leading up to pressure plate ===
-    // Step 1
-    this.addStaticBox({ x: 4, y: 0.5, z: 4 }, { x: 0, y: 0.25, z: -7 }, 0x7A6A52);
-    // Step 2
-    this.addStaticBox({ x: 3.5, y: 0.5, z: 3.5 }, { x: 0, y: 0.75, z: -7 }, 0x7A6A52);
-    // Step 3 (top) — pressure plate sits here
-    this.addStaticBox({ x: 3, y: 0.5, z: 3 }, { x: 0, y: 1.25, z: -7 }, 0x7A6A52);
+    // === VOLCANO in the back ===
+    // Main cone
+    const volcanoGeo = new THREE.ConeGeometry(6, 10, 12);
+    const volcanoMat = new THREE.MeshStandardMaterial({
+      color: 0x4a3a2a,
+      roughness: 0.95,
+    });
+    const volcanoMesh = new THREE.Mesh(volcanoGeo, volcanoMat);
+    volcanoMesh.position.set(0, 4, -16);
+    volcanoMesh.castShadow = true;
+    game.scene.add(volcanoMesh);
+    this.meshes.push(volcanoMesh);
 
-    // === PRESSURE PLATE on top of steps ===
+    // Volcano crater (dark hole at top)
+    const craterGeo = new THREE.CylinderGeometry(2, 2.5, 1, 12);
+    const craterMat = new THREE.MeshStandardMaterial({ color: 0x1a0a00 });
+    const craterMesh = new THREE.Mesh(craterGeo, craterMat);
+    craterMesh.position.set(0, 9.2, -16);
+    game.scene.add(craterMesh);
+    this.meshes.push(craterMesh);
+
+    // Lava glow in crater
+    this.craterGlow = new THREE.Mesh(
+      new THREE.CircleGeometry(2, 16),
+      new THREE.MeshBasicMaterial({ color: 0xff4400, transparent: true, opacity: 0.8 })
+    );
+    this.craterGlow.rotation.x = -Math.PI / 2;
+    this.craterGlow.position.set(0, 9.7, -16);
+    game.scene.add(this.craterGlow);
+    this.meshes.push(this.craterGlow);
+
+    // Volcano physics (can't walk through it)
+    const volcanoBody = new CANNON.Body({
+      type: CANNON.Body.STATIC,
+      shape: new CANNON.Cylinder(0.5, 6, 10, 8),
+    });
+    volcanoBody.position.set(0, 4, -16);
+    game.world.addBody(volcanoBody);
+    this.bodies.push(volcanoBody);
+
+    // === STEPPED PLATFORM to pressure plate ===
+    this.addStaticBox({ x: 4, y: 0.5, z: 3 }, { x: 0, y: 0.25, z: -7 }, 0x555555);
+    this.addStaticBox({ x: 3, y: 0.5, z: 2.5 }, { x: 0, y: 0.75, z: -7.5 }, 0x555555);
+    this.addStaticBox({ x: 2.5, y: 0.5, z: 2 }, { x: 0, y: 1.25, z: -8 }, 0x555555);
+
+    // === PRESSURE PLATE ===
     const plateMesh = new THREE.Mesh(
       new THREE.CylinderGeometry(0.8, 0.8, 0.15, 16),
-      new THREE.MeshStandardMaterial({ color: 0xdd4444, metalness: 0.6, emissive: 0x441111 })
+      new THREE.MeshStandardMaterial({
+        color: 0xff6600,
+        metalness: 0.6,
+        emissive: 0xff2200,
+        emissiveIntensity: 0.5,
+      })
     );
-    plateMesh.position.set(0, 1.58, -7);
+    plateMesh.position.set(0, 1.58, -8);
     plateMesh.castShadow = true;
     game.scene.add(plateMesh);
     this.meshes.push(plateMesh);
     this.plateMesh = plateMesh;
-    this.platePosition = { x: 0, y: 1.58, z: -7 };
+    this.platePosition = { x: 0, y: 1.58, z: -8 };
     this.plateRadius = 1.0;
     this.plateTriggered = false;
     this.plateResetTimer = 0;
 
-    // Glowing ring around plate
+    // Glowing ring
     const ringMesh = new THREE.Mesh(
       new THREE.RingGeometry(0.75, 0.9, 24),
-      new THREE.MeshBasicMaterial({ color: 0xff4444, side: THREE.DoubleSide })
+      new THREE.MeshBasicMaterial({ color: 0xff6600, side: THREE.DoubleSide })
     );
     ringMesh.rotation.x = -Math.PI / 2;
-    ringMesh.position.set(0, 1.56, -7);
+    ringMesh.position.set(0, 1.56, -8);
     game.scene.add(ringMesh);
     this.meshes.push(ringMesh);
     this.ringMesh = ringMesh;
 
-    // === LANDSLIDE ROCKS — pre-created, hidden above the cliffs ===
+    // === LAVA ROCKS — glowing orange/red projectiles ===
     this.rocks = [];
     this.rockMeshes = [];
-    this.landslideActive = false;
-    this.landslideTimer = 0;
+    this.eruptionActive = false;
+    this.eruptionTimer = 0;
+    this.rockBurnCooldowns = new Map(); // track per-player burn cooldown
 
-    const rockColors = [0x8B7355, 0x6B5B45, 0x9B8B6B, 0x7A6A52, 0x5C4E3C];
-    const rockShape = new CANNON.Box(new CANNON.Vec3(0.3, 0.3, 0.3));
-    const smallRockShape = new CANNON.Sphere(0.25);
+    const lavaColors = [0xff4400, 0xff6600, 0xff2200, 0xcc3300, 0xff5500];
+    const rockShape = new CANNON.Sphere(0.3);
 
-    // Create a pool of 80 rocks, stored high up and sleeping
-    for (let i = 0; i < 80; i++) {
-      const useBox = Math.random() > 0.4;
-      const shape = useBox ? rockShape : smallRockShape;
-      const size = 0.3 + Math.random() * 0.3;
-
+    for (let i = 0; i < 60; i++) {
       const body = new CANNON.Body({
-        mass: 2 + Math.random() * 3,
-        shape,
-        linearDamping: 0.1,
+        mass: 3,
+        shape: rockShape,
+        linearDamping: 0.05,
       });
-      // Park them way above, out of sight
       body.position.set(0, 100 + i, 0);
       body.sleep();
       game.world.addBody(body);
 
-      const geo = useBox
-        ? new THREE.BoxGeometry(size, size, size)
-        : new THREE.SphereGeometry(size * 0.8, 6, 6);
-      const mat = new THREE.MeshStandardMaterial({
-        color: rockColors[i % rockColors.length],
-        roughness: 0.9,
-      });
-      const mesh = new THREE.Mesh(geo, mat);
+      const size = 0.25 + Math.random() * 0.2;
+      const color = lavaColors[i % lavaColors.length];
+      const mesh = new THREE.Mesh(
+        new THREE.DodecahedronGeometry(size, 1),
+        new THREE.MeshStandardMaterial({
+          color,
+          emissive: color,
+          emissiveIntensity: 1.5,
+          roughness: 0.3,
+        })
+      );
       mesh.castShadow = true;
       mesh.visible = false;
       game.scene.add(mesh);
+
+      // Add a point light to some rocks for glow effect
+      if (i % 5 === 0) {
+        const light = new THREE.PointLight(0xff4400, 0.5, 5);
+        mesh.add(light);
+      }
 
       this.rocks.push(body);
       this.rockMeshes.push(mesh);
@@ -95,73 +144,46 @@ export class Landslide extends Arena {
       this.meshes.push(mesh);
     }
 
-    // Track how many rocks have been dropped
     this.rockDropIndex = 0;
     this.rockDropTimer = 0;
 
-    // === AMBIENT: scattered boulders for decoration ===
-    for (let i = 0; i < 10; i++) {
-      const bx = (Math.random() - 0.5) * 20;
-      const bz = (Math.random() - 0.5) * 16;
-      const bs = 0.4 + Math.random() * 0.6;
-      const bMesh = new THREE.Mesh(
-        new THREE.DodecahedronGeometry(bs, 0),
-        new THREE.MeshStandardMaterial({
-          color: rockColors[i % rockColors.length],
-          roughness: 0.95,
-        })
-      );
-      bMesh.position.set(bx, bs * 0.5, bz);
-      bMesh.rotation.set(Math.random(), Math.random(), Math.random());
-      bMesh.castShadow = true;
-      game.scene.add(bMesh);
-      this.meshes.push(bMesh);
-    }
+    // === AMBIENT LIGHTING — warm volcanic ===
+    const lavaLight = new THREE.PointLight(0xff4400, 1, 30);
+    lavaLight.position.set(0, 10, -16);
+    game.scene.add(lavaLight);
+    this.meshes.push(lavaLight);
+    this.lavaLight = lavaLight;
 
-    // === Warning sign near plate ===
-    const signMesh = new THREE.Mesh(
-      new THREE.BoxGeometry(1.2, 0.8, 0.05),
-      new THREE.MeshStandardMaterial({ color: 0xffcc00 })
-    );
-    signMesh.position.set(-2.5, 1.5, -7);
-    signMesh.rotation.y = 0.3;
-    game.scene.add(signMesh);
-    this.meshes.push(signMesh);
-
-    // Sign post
-    const postMesh = new THREE.Mesh(
-      new THREE.BoxGeometry(0.1, 1.5, 0.1),
-      new THREE.MeshStandardMaterial({ color: 0x554433 })
-    );
-    postMesh.position.set(-2.5, 0.75, -7);
-    game.scene.add(postMesh);
-    this.meshes.push(postMesh);
+    // Orange fog effect
+    game.scene.fog = new THREE.FogExp2(0x1a0800, 0.015);
   }
 
-  triggerLandslide() {
-    if (this.landslideActive) return;
-    this.landslideActive = true;
-    this.landslideTimer = 0;
+  triggerEruption() {
+    if (this.eruptionActive) return;
+    this.eruptionActive = true;
+    this.eruptionTimer = 0;
     this.rockDropIndex = 0;
     this.rockDropTimer = 0;
 
-    // Flash the plate
-    this.plateMesh.material.emissive.setHex(0xff2222);
-    this.plateMesh.material.emissiveIntensity = 2;
+    // Flash plate and crater
+    this.plateMesh.material.emissiveIntensity = 3;
+    this.craterGlow.material.opacity = 1;
+    this.lavaLight.intensity = 3;
 
-    // Rumble effect — shake camera slightly (handled by game loop)
-    this._rumbleTimer = 0.5;
+    this._rumbleTimer = 1.5;
   }
 
   resetPlate() {
     this.plateTriggered = false;
-    this.plateMesh.material.emissive.setHex(0x441111);
-    this.plateMesh.material.emissiveIntensity = 1;
-    this.ringMesh.material.color.setHex(0xff4444);
+    this.plateMesh.material.emissiveIntensity = 0.5;
+    this.ringMesh.material.color.setHex(0xff6600);
   }
 
   update(dt) {
     super.update(dt);
+
+    // === Crater glow pulse ===
+    this.craterGlow.material.opacity = 0.6 + Math.sin(performance.now() * 0.003) * 0.2;
 
     // === CHECK PRESSURE PLATE ===
     if (!this.plateTriggered) {
@@ -174,43 +196,45 @@ export class Landslide extends Arena {
         const dist = Math.sqrt(dx * dx + dz * dz);
         if (dist < this.plateRadius && pos.y > 1.0 && pos.y < 3.0) {
           this.plateTriggered = true;
-          this.triggerLandslide();
+          this.triggerEruption();
           break;
         }
       }
 
-      // Pulse the ring when not triggered
-      const pulse = 0.7 + Math.sin(performance.now() * 0.004) * 0.3;
+      // Pulse ring
+      const pulse = 0.5 + Math.sin(performance.now() * 0.005) * 0.5;
       this.ringMesh.material.opacity = pulse;
     }
 
-    // === LANDSLIDE — drop rocks from both cliff sides ===
-    if (this.landslideActive) {
-      this.landslideTimer += dt;
+    // === ERUPTION — launch lava rocks from volcano crater ===
+    if (this.eruptionActive) {
+      this.eruptionTimer += dt;
       this.rockDropTimer += dt;
 
-      // Drop rocks one/two at a time over ~4 seconds
-      const dropInterval = 0.05; // very fast drops
+      const dropInterval = 0.08;
       while (this.rockDropTimer >= dropInterval && this.rockDropIndex < this.rocks.length) {
         const rock = this.rocks[this.rockDropIndex];
         const mesh = this.rockMeshes[this.rockDropIndex];
 
-        // Alternate from left and right cliff sides
-        const fromLeft = this.rockDropIndex % 2 === 0;
-        const x = fromLeft
-          ? -11 + Math.random() * 4
-          : 7 + Math.random() * 4;
-        const y = 8 + Math.random() * 5;
-        const z = (Math.random() - 0.5) * 16;
+        // Launch from volcano crater with spread
+        const angle = Math.random() * Math.PI * 2;
+        const spread = Math.random() * 1.5;
+        rock.position.set(
+          Math.cos(angle) * spread,
+          9 + Math.random() * 2,
+          -16 + Math.sin(angle) * spread
+        );
 
-        rock.position.set(x, y, z);
+        // Arc toward the platform
+        const targetX = (Math.random() - 0.5) * 18;
+        const targetZ = (Math.random() - 0.3) * 16;
         rock.velocity.set(
-          fromLeft ? 3 + Math.random() * 4 : -3 - Math.random() * 4,
-          -2 - Math.random() * 3,
-          (Math.random() - 0.5) * 3
+          targetX * 0.8,
+          8 + Math.random() * 6,
+          (targetZ + 16) * 0.8
         );
         rock.angularVelocity.set(
-          Math.random() * 5, Math.random() * 5, Math.random() * 5
+          Math.random() * 8, Math.random() * 8, Math.random() * 8
         );
         rock.wakeUp();
         mesh.visible = true;
@@ -219,7 +243,7 @@ export class Landslide extends Arena {
         this.rockDropTimer -= dropInterval;
       }
 
-      // Sync rock meshes to physics
+      // Sync rock meshes
       for (let i = 0; i < this.rockDropIndex; i++) {
         const rock = this.rocks[i];
         const mesh = this.rockMeshes[i];
@@ -227,16 +251,23 @@ export class Landslide extends Arena {
         mesh.quaternion.copy(rock.quaternion);
       }
 
-      // After all rocks dropped and settled, allow re-trigger
-      if (this.rockDropIndex >= this.rocks.length && this.landslideTimer > 8) {
-        this.landslideActive = false;
-        this.plateResetTimer = 3;
+      // === BURN CHECK — lava rocks damage players on contact ===
+      this._checkBurns(dt);
 
-        // Put rocks to sleep and hide them
+      // Fade lava light back down
+      if (this.eruptionTimer > 2) {
+        this.lavaLight.intensity = Math.max(1, 3 - (this.eruptionTimer - 2) * 0.5);
+      }
+
+      // End eruption after rocks settle
+      if (this.rockDropIndex >= this.rocks.length && this.eruptionTimer > 10) {
+        this.eruptionActive = false;
+        this.plateResetTimer = 4;
+
+        // Clean up fallen rocks
         for (let i = 0; i < this.rocks.length; i++) {
           const rock = this.rocks[i];
           const mesh = this.rockMeshes[i];
-          // Only hide rocks that fell off the platform
           if (rock.position.y < -5) {
             rock.position.set(0, 100 + i, 0);
             rock.velocity.set(0, 0, 0);
@@ -244,16 +275,16 @@ export class Landslide extends Arena {
             mesh.visible = false;
           }
         }
+        this.lavaLight.intensity = 1;
       }
     } else {
-      // Still sync visible rocks that are on the platform
+      // Sync visible rocks still on platform
       for (let i = 0; i < this.rocks.length; i++) {
         const mesh = this.rockMeshes[i];
         if (mesh.visible) {
           const rock = this.rocks[i];
           mesh.position.copy(rock.position);
           mesh.quaternion.copy(rock.quaternion);
-          // Clean up rocks that fell off
           if (rock.position.y < -10) {
             rock.position.set(0, 100 + i, 0);
             rock.velocity.set(0, 0, 0);
@@ -262,9 +293,11 @@ export class Landslide extends Arena {
           }
         }
       }
+      // Still check burns for rocks sitting on the platform
+      this._checkBurns(dt);
     }
 
-    // === PLATE RESET TIMER ===
+    // === PLATE RESET ===
     if (this.plateResetTimer > 0) {
       this.plateResetTimer -= dt;
       if (this.plateResetTimer <= 0) {
@@ -275,9 +308,51 @@ export class Landslide extends Arena {
     // === CAMERA RUMBLE ===
     if (this._rumbleTimer > 0) {
       this._rumbleTimer -= dt;
+      const intensity = Math.min(this._rumbleTimer, 0.5);
       const cam = this.game.camera;
-      cam.position.x += (Math.random() - 0.5) * 0.1;
-      cam.position.y += (Math.random() - 0.5) * 0.05;
+      cam.position.x += (Math.random() - 0.5) * intensity * 0.3;
+      cam.position.y += (Math.random() - 0.5) * intensity * 0.15;
+    }
+  }
+
+  _checkBurns(dt) {
+    const allPlayers = this.game._allPlayers || [];
+    for (const p of allPlayers) {
+      if (!p.alive || !p.ragdoll) continue;
+      const pPos = p.ragdoll.getTorso().position;
+
+      // Cooldown per player — can only burn once per second
+      const lastBurn = this.rockBurnCooldowns.get(p) || 0;
+      if (performance.now() - lastBurn < 1000) continue;
+
+      for (let i = 0; i < this.rocks.length; i++) {
+        const mesh = this.rockMeshes[i];
+        if (!mesh.visible) continue;
+        const rock = this.rocks[i];
+
+        const dx = pPos.x - rock.position.x;
+        const dy = pPos.y - rock.position.y;
+        const dz = pPos.z - rock.position.z;
+        const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+
+        if (dist < 1.0) {
+          // BURN! 30% damage
+          p.ragdoll.balance.takeDamage(30);
+          this.rockBurnCooldowns.set(p, performance.now());
+
+          // Knockback away from rock
+          const knockDir = new CANNON.Vec3(dx, 0.5, dz);
+          if (knockDir.length() > 0.01) knockDir.normalize();
+          const knockMult = p.ragdoll.balance.getKnockbackMultiplier();
+          p.ragdoll.getTorso().applyImpulse(new CANNON.Vec3(
+            knockDir.x * 15 * knockMult,
+            knockDir.y * 10 * knockMult,
+            knockDir.z * 15 * knockMult
+          ));
+
+          break; // Only one burn per frame per player
+        }
+      }
     }
   }
 }
