@@ -1,10 +1,17 @@
-const ARENAS = [
+const BASE_ARENAS = [
   { key: 'rooftop', name: 'Rooftop', description: 'Spinning dish + breakable ledges', color: '#888888' },
   { key: 'factory', name: 'Factory', description: 'Conveyors + crushers', color: '#555555' },
   { key: 'wrestlingRing', name: 'Wrestling Ring', description: 'Bouncy ropes + electrify', color: '#336633' },
   { key: 'landslide', name: 'Volcano', description: 'Trigger eruption — lava rocks burn 30% HP', color: '#ff4400' },
+];
+
+const DADDY_ARENAS = [
   { key: 'landslideChaos', name: 'Landslide', description: 'Press the plate... if you dare 🎲', color: '#cc6633' },
 ];
+
+function getArenas() {
+  return window.__daddyMode ? [...BASE_ARENAS, ...DADDY_ARENAS] : BASE_ARENAS;
+}
 
 export class ArenaSelectScreen {
   constructor(container) {
@@ -27,21 +34,21 @@ export class ArenaSelectScreen {
 
     this.handler = (e) => {
       if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
-        this.selected = (this.selected - 1 + ARENAS.length) % ARENAS.length;
+        this.selected = (this.selected - 1 + getArenas().length) % getArenas().length;
         this.updateDisplay();
       }
       if (e.code === 'ArrowRight' || e.code === 'KeyD') {
-        this.selected = (this.selected + 1) % ARENAS.length;
+        this.selected = (this.selected + 1) % getArenas().length;
         this.updateDisplay();
       }
       if (e.code === 'Enter') {
         this.hide();
-        if (this.onReady) this.onReady(ARENAS[this.selected].key);
+        if (this.onReady) this.onReady(getArenas()[this.selected].key);
       }
       if (e.code === 'KeyR') {
-        this.selected = Math.floor(Math.random() * ARENAS.length);
+        this.selected = Math.floor(Math.random() * getArenas().length);
         this.hide();
-        if (this.onReady) this.onReady(ARENAS[this.selected].key);
+        if (this.onReady) this.onReady(getArenas()[this.selected].key);
       }
     };
     window.addEventListener('keydown', this.handler);
@@ -49,7 +56,7 @@ export class ArenaSelectScreen {
 
   updateDisplay() {
     if (!this.element) return;
-    const cards = ARENAS.map((a, i) => `
+    const cards = getArenas().map((a, i) => `
       <div style="
         padding: 24px; margin: 10px;
         background: ${i === this.selected ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.05)'};

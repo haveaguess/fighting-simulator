@@ -122,6 +122,21 @@ export class Ragdoll {
     game.scene.add(this.healthBarGroup);
     this.meshes._healthBar = this.healthBarGroup;
 
+    // Name label above health bar (daddy mode only)
+    this.nameSprite = null;
+    this.playerName = null;
+    if (window.__daddyMode) {
+      const names = [
+        'Teri', 'Andy', 'Andrew', 'Quynh', 'Ben', 'Alan', 'Kerem', 'Kaius',
+        'Deborah', 'Vuong', 'Charlotte', 'Jan', 'Billy', 'William', 'Rose',
+        'Abey', 'Emmeline', 'Gabriel',
+      ];
+      this.playerName = names[Math.floor(Math.random() * names.length)];
+      this.nameSprite = this._createNameSprite(this.playerName);
+      game.scene.add(this.nameSprite);
+      this.meshes._nameSprite = this.nameSprite;
+    }
+
     // Celebration state
     this.celebrating = false;
     this.celebrateTimer = 0;
@@ -150,6 +165,44 @@ export class Ragdoll {
     mesh.castShadow = true;
     this.game.scene.add(mesh);
     return mesh;
+  }
+
+  _createNameSprite(name) {
+    const canvas = document.createElement('canvas');
+    canvas.width = 256;
+    canvas.height = 64;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = 'white';
+    ctx.font = 'bold 36px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.strokeStyle = 'black';
+    ctx.lineWidth = 4;
+    ctx.strokeText(name, 128, 32);
+    ctx.fillText(name, 128, 32);
+    const tex = new THREE.CanvasTexture(canvas);
+    const mat = new THREE.SpriteMaterial({ map: tex, transparent: true });
+    const sprite = new THREE.Sprite(mat);
+    sprite.scale.set(1.2, 0.3, 1);
+    return sprite;
+  }
+
+  onHit() {
+    // Randomly fart or laugh when hit (daddy mode only)
+    if (!window.__daddyMode) return;
+    const audio = this.game._audio;
+    if (!audio) return;
+    const roll = Math.random();
+    if (roll < 0.3) {
+      // Fart
+      audio.playTone(0.15, 80, 'sawtooth', -30, 0.2);
+      audio.playNoise(0.1, 100, 40, 0.15);
+    } else if (roll < 0.5) {
+      // Laugh — quick ascending chirps
+      for (let i = 0; i < 3; i++) {
+        setTimeout(() => audio.playTone(0.06, 400 + i * 100 + Math.random() * 100, 'sine', 200, 0.12), i * 80);
+      }
+    }
   }
 
   _animateLimbs(dt) {
@@ -345,6 +398,10 @@ export class Ragdoll {
     // Health bar — float above head, always face camera
     if (this.healthBarGroup) {
       this.healthBarGroup.position.set(x, y + 1.0, z);
+      // Name above health bar
+      if (this.nameSprite) {
+        this.nameSprite.position.set(x, y + 1.15, z);
+      }
       // Billboard — face camera
       const cam = this.game.camera;
       if (cam) {

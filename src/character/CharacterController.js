@@ -235,6 +235,7 @@ export class CharacterController {
 
         p.ragdoll.balance.takeDamage(damageAmount);
         if (this.audio) this.audio.playHit();
+        p.ragdoll.onHit();
       }
     }
   }

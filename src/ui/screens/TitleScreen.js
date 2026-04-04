@@ -22,10 +22,37 @@ export class TitleScreen {
     `;
     this.container.appendChild(this.element);
 
+    // Secret code tracker
+    this._codeBuffer = '';
+
     this.handler = (e) => {
       if (e.code === 'Enter') {
         this.hide();
         if (this.onStart) this.onStart();
+      }
+
+      // Track typed letters for secret code
+      if (e.key && e.key.length === 1) {
+        this._codeBuffer += e.key.toLowerCase();
+        // Keep only last 10 chars
+        if (this._codeBuffer.length > 10) {
+          this._codeBuffer = this._codeBuffer.slice(-10);
+        }
+        if (this._codeBuffer.includes('daddy')) {
+          window.__daddyMode = true;
+          // Visual confirmation
+          const flash = document.createElement('div');
+          flash.style.cssText = `
+            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            font-size: 36px; color: #ff44ff; font-family: 'Arial Black', sans-serif;
+            z-index: 9999; pointer-events: none;
+            text-shadow: 2px 2px 8px rgba(255,0,255,0.8);
+          `;
+          flash.textContent = 'DADDY MODE ACTIVATED';
+          document.body.appendChild(flash);
+          setTimeout(() => flash.remove(), 2000);
+          this._codeBuffer = '';
+        }
       }
     };
     window.addEventListener('keydown', this.handler);
