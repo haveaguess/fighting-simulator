@@ -6,30 +6,52 @@ export class CameraController {
     this.target = new THREE.Vector3(0, 2, 0);
     this.offset = new THREE.Vector3(0, 12, 25);
     this.smoothness = 3;
-    this.minZoom = 15;
-    this.maxZoom = 40;
+    this.minZoom = 12;
+    this.maxZoom = 28;
   }
 
   update(dt, players) {
-    // Only track players who are alive and still on/near the platform
-    const relevant = players.filter(p => {
+    const onPlatform = (p) => {
       if (!p.alive) return false;
       const pos = p.ragdoll.getPosition();
-      // Ignore players falling off — below platform level
-      if (pos.y < -3) return false;
-      // Ignore players way too far from center (guaranteed dead)
-      if (Math.abs(pos.x) > 25 || Math.abs(pos.z) > 25) return false;
-      return true;
-    });
+      return pos.y > -3 && Math.abs(pos.x) < 25 && Math.abs(pos.z) < 25;
+    };
 
-    if (relevant.length === 0) return;
+    // Separate humans from AI
+    const humans = players.filter(p => !p.isAI && onPlatform(p));
+    const ais = players.filter(p => p.isAI && onPlatform(p));
 
+    // Always prioritize human players
+    if (humans.length === 0 && ais.length === 0) return;
+
+    // Start with human positions as the anchor
+    let anchors = humans.map(p => p.ragdoll.getPosition());
+
+    // If no humans alive, fall back to AI
+    if (anchors.length === 0) {
+      anchors = ais.map(p => p.ragdoll.getPosition());
+    } else {
+      // Include AI players only if they're close to a human (within 8 units)
+      // This keeps nearby fights in frame without zooming out for distant AI
+      for (const ai of ais) {
+        const aiPos = ai.ragdoll.getPosition();
+        for (const hPos of anchors) {
+          const dx = aiPos.x - hPos.x;
+          const dz = aiPos.z - hPos.z;
+          if (Math.sqrt(dx * dx + dz * dz) < 8) {
+            anchors.push(aiPos);
+            break;
+          }
+        }
+      }
+    }
+
+    // Calculate bounding box
     let minX = Infinity, maxX = -Infinity;
     let minZ = Infinity, maxZ = -Infinity;
     let avgY = 0;
 
-    for (const p of relevant) {
-      const pos = p.ragdoll.getPosition();
+    for (const pos of anchors) {
       minX = Math.min(minX, pos.x);
       maxX = Math.max(maxX, pos.x);
       minZ = Math.min(minZ, pos.z);
@@ -39,12 +61,12 @@ export class CameraController {
 
     const centerX = (minX + maxX) / 2;
     const centerZ = (minZ + maxZ) / 2;
-    avgY /= relevant.length;
+    avgY /= anchors.length;
 
-    const spread = Math.max(maxX - minX, maxZ - minZ, 5);
-    const zoom = THREE.MathUtils.clamp(spread * 1.5 + 10, this.minZoom, this.maxZoom);
+    const spread = Math.max(maxX - minX, maxZ - minZ, 4);
+    const zoom = THREE.MathUtils.clamp(spread * 1.2 + 8, this.minZoom, this.maxZoom);
 
-    const targetPos = new THREE.Vector3(centerX, Math.max(avgY, 2), centerZ);
+    const targetPos = new THREE.Vector3(centerX, Math.max(avgY, 1.5), centerZ);
     const lerpFactor = Math.min(dt * this.smoothness, 1);
     this.target.lerp(targetPos, lerpFactor);
 

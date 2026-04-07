@@ -8,6 +8,7 @@ import { InputManager } from './input/InputManager.js';
 import { PLAYER_1_KEYS, PLAYER_2_KEYS } from './input/KeyboardBindings.js';
 import { DamageSystem } from './character/DamageSystem.js';
 import { applyCostume, COSTUME_KEYS } from './character/Costumes.js';
+import { VoiceManager } from './audio/VoiceManager.js';
 import { HUD } from './ui/HUD.js';
 import { TitleScreen } from './ui/screens/TitleScreen.js';
 import { PlayerJoinScreen } from './ui/screens/PlayerJoinScreen.js';
@@ -15,8 +16,10 @@ import { ModeSelectScreen } from './ui/screens/ModeSelectScreen.js';
 import { CostumeSelectScreen } from './ui/screens/CostumeSelectScreen.js';
 import { ArenaSelectScreen } from './ui/screens/ArenaSelectScreen.js';
 import { CameraController } from './core/CameraController.js';
+import { ReplaySystem } from './core/ReplaySystem.js';
 import { AudioManager } from './audio/AudioManager.js';
 import { PauseMenu } from './core/PauseMenu.js';
+import { TouchControls } from './input/TouchControls.js';
 import { Rooftop } from './arenas/Rooftop.js';
 import { Factory } from './arenas/Factory.js';
 import { WrestlingRing } from './arenas/WrestlingRing.js';
@@ -51,18 +54,84 @@ export class GameApp {
     this.game._audio = this.audio;
     this.cameraController = null;
     this.pause = new PauseMenu(this.game, this.input);
+    this.touchControls = null;
     this.gameMode = 'melee';
+  }
+
+  // === URL PARAM STATE MANAGEMENT ===
+  _updateURL(params) {
+    const url = new URL(window.location);
+    for (const [key, val] of Object.entries(params)) {
+      if (val !== undefined && val !== null) {
+        url.searchParams.set(key, val);
+      }
+    }
+    window.history.replaceState({}, '', url);
+  }
+
+  _clearGameURL() {
+    const url = new URL(window.location);
+    const keep = ['daddy']; // preserve non-game params
+    const keysToRemove = [];
+    for (const key of url.searchParams.keys()) {
+      if (!keep.includes(key)) keysToRemove.push(key);
+    }
+    for (const key of keysToRemove) url.searchParams.delete(key);
+    window.history.replaceState({}, '', url);
+  }
+
+  _getURLParams() {
+    const url = new URL(window.location);
+    const p = url.searchParams;
+    if (!p.has('mode') || !p.has('arena')) return null;
+    return {
+      mode: p.get('mode'),
+      arena: p.get('arena'),
+      players: p.get('players')?.split(',').map(Number) || [0],
+      costumes: JSON.parse(p.get('costumes') || '{}'),
+      sizes: JSON.parse(p.get('sizes') || '{}'),
+    };
   }
 
   start() {
     this.game.start();
+
+    // Check URL for saved game state (hot reload recovery)
+    const saved = this._getURLParams();
+    if (saved && ARENA_MAP[saved.arena]) {
+      // Restore directly into the game, skip menus
+      const joinedPlayers = new Set(saved.players);
+      const costumeChoices = {};
+      const sizeChoices = {};
+      for (const [k, v] of Object.entries(saved.costumes)) costumeChoices[k] = v;
+      for (const [k, v] of Object.entries(saved.sizes)) sizeChoices[k] = parseFloat(v);
+      this.gameMode = saved.mode;
+
+      const humanCount = joinedPlayers.size;
+      const totalPlayers = saved.mode === 'waves' ? humanCount : Math.max(humanCount, 2);
+      if (saved.mode === 'waves') {
+        this.startWavesGame(joinedPlayers, costumeChoices, sizeChoices, saved.arena);
+      } else {
+        this.startMeleeGame(joinedPlayers, costumeChoices, sizeChoices, saved.arena, totalPlayers);
+      }
+      return;
+    }
+
     this.showTitle();
   }
 
   showTitle() {
-    const screen = new TitleScreen(this.ui);
-    screen.onStart = () => this.showPlayerJoin();
-    screen.show();
+    this._clearGameURL();
+    this.titleScreen = new TitleScreen(this.ui);
+    this.titleScreen.onStart = () => this.showPlayerJoin();
+    this.titleScreen.show();
+  }
+
+  _stopMenuMusic() {
+    if (this.titleScreen) {
+      this.titleScreen.stopMusic();
+      this.titleScreen = null;
+    }
   }
 
   showPlayerJoin() {
@@ -75,6 +144,7 @@ export class GameApp {
     const screen = new ModeSelectScreen(this.ui);
     screen.onReady = (mode) => {
       this.gameMode = mode;
+      this._updateURL({ mode });
       this.showCostumeSelect(joinedPlayers);
     };
     screen.show();
@@ -84,26 +154,35 @@ export class GameApp {
     const humanCount = joinedPlayers.size;
     const totalPlayers = this.gameMode === 'waves' ? humanCount : Math.max(humanCount, 2);
     const screen = new CostumeSelectScreen(this.ui, humanCount);
-    screen.onReady = (costumeChoices) => {
-      this.showArenaSelect(joinedPlayers, costumeChoices, totalPlayers);
+    screen.onReady = (costumeChoices, sizeChoices) => {
+      this._updateURL({
+        costumes: JSON.stringify(costumeChoices),
+        sizes: JSON.stringify(sizeChoices),
+      });
+      this.showArenaSelect(joinedPlayers, costumeChoices, sizeChoices, totalPlayers);
     };
     screen.show();
   }
 
-  showArenaSelect(joinedPlayers, costumeChoices, totalPlayers) {
+  showArenaSelect(joinedPlayers, costumeChoices, sizeChoices, totalPlayers) {
     const screen = new ArenaSelectScreen(this.ui);
     screen.onReady = (arenaKey) => {
+      // Save full game state to URL
+      this._updateURL({
+        arena: arenaKey,
+        players: [...joinedPlayers].join(','),
+      });
       if (this.gameMode === 'waves') {
-        this.startWavesGame(joinedPlayers, costumeChoices, arenaKey);
+        this.startWavesGame(joinedPlayers, costumeChoices, sizeChoices, arenaKey);
       } else {
-        this.startMeleeGame(joinedPlayers, costumeChoices, arenaKey, totalPlayers);
+        this.startMeleeGame(joinedPlayers, costumeChoices, sizeChoices, arenaKey, totalPlayers);
       }
     };
     screen.show();
   }
 
   // === MELEE MODE ===
-  startMeleeGame(joinedPlayers, costumeChoices, arenaKey, totalPlayers) {
+  startMeleeGame(joinedPlayers, costumeChoices, sizeChoices, arenaKey, totalPlayers) {
     this._gameCallbacks = [];
 
     // Load arena
@@ -125,11 +204,13 @@ export class GameApp {
     // Human players
     for (const idx of joinedArray) {
       const color = PLAYER_COLORS[this.players.length];
-      const p = new Player(this.game, this.input, idx, spawnPoints[this.players.length], color, this.audio);
+      const scale = (sizeChoices && sizeChoices[humanIndex]) || 1.0;
+      const p = new Player(this.game, this.input, idx, spawnPoints[this.players.length], color, this.audio, scale);
       const costumeKey = costumeChoices[humanIndex] || COSTUME_KEYS[0];
       p.costumeKey = costumeKey;
       p.damageSystem = this.damageSystem;
       applyCostume(p.ragdoll, costumeKey);
+      p.ragdoll.voiceManager = new VoiceManager(costumeKey);
       this.damageSystem.register(p.ragdoll);
       this.players.push(p);
       humanIndex++;
@@ -144,6 +225,7 @@ export class GameApp {
       ai.costumeKey = randomCostume;
       ai.damageSystem = this.damageSystem;
       applyCostume(ai.ragdoll, randomCostume);
+      ai.ragdoll.voiceManager = new VoiceManager(randomCostume);
       this.damageSystem.register(ai.ragdoll);
       this.players.push(ai);
     }
@@ -159,6 +241,13 @@ export class GameApp {
     this.cameraController = new CameraController(this.game.camera);
     this._gameCallbacks.push(this.game.onUpdate((dt) => this.cameraController.update(dt, this.players)));
 
+    // Replay system
+    this.replaySystem = new ReplaySystem(this.game);
+    this.replaySystem.onPlayerDeath = () => {
+      this.replaySystem.playCornerReplay(3);
+    };
+    this.replaySystem.startRecording();
+
     // Match manager
     this.match = new MatchManager(this.game, this.players);
     this.match.onStateChange = (state, data) => {
@@ -167,6 +256,7 @@ export class GameApp {
         this.audio.playCountdown();
       }
       if (state === 'playing') {
+        this._stopMenuMusic();
         this.hud.showCenter('FIGHT!', 1.5);
         this.audio.playFight();
         this.audio.startMusic();
@@ -176,23 +266,24 @@ export class GameApp {
         const winnerIdx = this.players.indexOf(data.winner);
         this.hud.showCenter(data.winner ? `P${winnerIdx + 1} wins the round!` : 'Draw!', 2.5);
         if (data.winner) this.audio.playWin();
+        this.replaySystem.playCornerReplay(3);
       }
       if (state === 'matchEnd') {
         const winnerIdx = this.players.indexOf(data.winner);
         this.hud.showCenter(`P${winnerIdx + 1} WINS THE MATCH!`);
         this.audio.playWin();
         if (data.winner?.ragdoll) data.winner.ragdoll.startCelebration();
-        setTimeout(() => {
+        this.replaySystem.playFullReplay(7, () => {
           this.cleanup();
           this.showTitle();
-        }, 5000);
+        });
       }
     };
     this.match.startMatch();
   }
 
   // === WAVES MODE ===
-  startWavesGame(joinedPlayers, costumeChoices, arenaKey) {
+  startWavesGame(joinedPlayers, costumeChoices, sizeChoices, arenaKey) {
     this._gameCallbacks = [];
 
     // Load arena
@@ -213,11 +304,13 @@ export class GameApp {
 
     for (const idx of joinedArray) {
       const color = PLAYER_COLORS[this.players.length];
-      const p = new Player(this.game, this.input, idx, spawnPoints[this.players.length], color, this.audio);
+      const scale = (sizeChoices && sizeChoices[humanIndex]) || 1.0;
+      const p = new Player(this.game, this.input, idx, spawnPoints[this.players.length], color, this.audio, scale);
       const costumeKey = costumeChoices[humanIndex] || COSTUME_KEYS[0];
       p.costumeKey = costumeKey;
       p.damageSystem = this.damageSystem;
       applyCostume(p.ragdoll, costumeKey);
+      p.ragdoll.voiceManager = new VoiceManager(costumeKey);
       this.damageSystem.register(p.ragdoll);
       this.players.push(p);
       humanIndex++;
@@ -237,6 +330,13 @@ export class GameApp {
       this.cameraController.update(dt, all);
     }));
 
+    // Replay system
+    this.replaySystem = new ReplaySystem(this.game);
+    this.replaySystem.onPlayerDeath = () => {
+      this.replaySystem.playCornerReplay(3);
+    };
+    this.replaySystem.startRecording();
+
     // Waves manager — restore saved progress
     this.wavesManager = new WavesManager(
       this.game, this.players, this.arena, this.damageSystem, this.hud, this.audio
@@ -255,6 +355,7 @@ export class GameApp {
         localStorage.setItem('wavesProgress', JSON.stringify({ wave: data.wave, usedContinue: this._wavesUsedContinue || false }));
       }
       if (state === 'fight') {
+        this._stopMenuMusic();
         this.hud.showCenter('FIGHT!', 1.5);
         this.audio.playFight();
         this.audio.startMusic();
@@ -263,6 +364,7 @@ export class GameApp {
       if (state === 'waveComplete') {
         this.hud.showCenter(`WAVE ${data.wave} CLEARED!`, 2.5);
         this.audio.playWin();
+        this.replaySystem.playCornerReplay(3);
         for (const p of this.players) {
           if (p.alive && p.ragdoll) p.ragdoll.startCelebration();
         }
@@ -324,6 +426,9 @@ export class GameApp {
     if (joinedArray.includes(1)) {
       this.input.registerKeyboardPlayer(1, PLAYER_2_KEYS);
     }
+    // Mobile touch controls for player 0
+    if (this.touchControls) this.touchControls.destroy();
+    this.touchControls = new TouchControls(this.input, joinedArray[0] || 0);
     for (const idx of joinedArray) {
       if (idx >= 2) {
         this.input.registerGamepadPlayer(idx, idx - 2);
@@ -346,11 +451,18 @@ export class GameApp {
   }
 
   cleanup() {
+    this._clearGameURL();
     if (this._gameCallbacks) {
       for (const cb of this._gameCallbacks) {
         this.game.removeOnUpdate(cb);
       }
       this._gameCallbacks = [];
+    }
+
+    // Clean up replay
+    if (this.replaySystem) {
+      this.replaySystem.destroy();
+      this.replaySystem = null;
     }
 
     // Clean up waves
@@ -359,6 +471,12 @@ export class GameApp {
       this.wavesManager = null;
     }
     this._wavesUsedContinue = false;
+
+    // Clean up touch controls
+    if (this.touchControls) {
+      this.touchControls.destroy();
+      this.touchControls = null;
+    }
 
     this.audio.stopMusic();
     this.audio.stopDishWhir();

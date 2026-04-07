@@ -5,9 +5,11 @@ import { InputManager } from './input/InputManager.js';
 import { PLAYER_1_KEYS, PLAYER_2_KEYS } from './input/KeyboardBindings.js';
 import { DamageSystem } from './character/DamageSystem.js';
 import { applyCostume } from './character/Costumes.js';
+import { VoiceManager } from './audio/VoiceManager.js';
 import { HUD } from './ui/HUD.js';
 import { CameraController } from './core/CameraController.js';
 import { AudioManager } from './audio/AudioManager.js';
+import { ReplaySystem } from './core/ReplaySystem.js';
 import { PauseMenu } from './core/PauseMenu.js';
 import { Rooftop } from './arenas/Rooftop.js';
 
@@ -33,6 +35,7 @@ export function startWavesQuick() {
   const p1 = new Player(game, input, 0, { x: -1, y: 1.5, z: 5 }, 0x44ff44, audio);
   applyCostume(p1.ragdoll, 'astronaut');
   p1.costumeKey = 'astronaut';
+  p1.ragdoll.voiceManager = new VoiceManager('astronaut');
   p1.damageSystem = damageSystem;
   damageSystem.register(p1.ragdoll);
 
@@ -51,6 +54,7 @@ export function startWavesQuick() {
   const p2 = new Player(game, input, 1, { x: 1, y: 1.5, z: 5 }, 0xffffff, chickenAudio);
   applyCostume(p2.ragdoll, 'chicken');
   p2.costumeKey = 'chicken';
+  p2.ragdoll.voiceManager = new VoiceManager('chicken');
   p2.damageSystem = damageSystem;
   damageSystem.register(p2.ragdoll);
 
@@ -73,6 +77,13 @@ export function startWavesQuick() {
   function saveProgress(wave, usedCont) {
     localStorage.setItem('wavesProgress', JSON.stringify({ wave, usedContinue: usedCont }));
   }
+
+  // Replay system
+  const replay = new ReplaySystem(game);
+  replay.onPlayerDeath = () => {
+    replay.playCornerReplay(3);
+  };
+  replay.startRecording();
 
   // Waves manager
   const wavesManager = new WavesManager(game, players, arena, damageSystem, hud, audio);
@@ -97,6 +108,7 @@ export function startWavesQuick() {
     if (state === 'waveComplete') {
       hud.showCenter(`WAVE ${data.wave} CLEARED!`, 2.5);
       audio.playWin();
+      replay.playCornerReplay(3);
       // Surviving humans celebrate
       for (const p of players) {
         if (p.alive && p.ragdoll) p.ragdoll.startCelebration();

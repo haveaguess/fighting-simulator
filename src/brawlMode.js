@@ -10,6 +10,8 @@ import { HUD } from './ui/HUD.js';
 import { MatchManager } from './core/MatchManager.js';
 import { PauseMenu } from './core/PauseMenu.js';
 import { applyCostume } from './character/Costumes.js';
+import { VoiceManager } from './audio/VoiceManager.js';
+import { ReplaySystem } from './core/ReplaySystem.js';
 import { Rooftop } from './arenas/Rooftop.js';
 
 export function startBrawlMode() {
@@ -32,6 +34,7 @@ export function startBrawlMode() {
   const p1 = new Player(game, input, 0, { x: -4, y: 1.5, z: 0 }, 0x44ff44, audio);
   applyCostume(p1.ragdoll, 'astronaut');
   p1.costumeKey = 'astronaut';
+  p1.ragdoll.voiceManager = new VoiceManager('astronaut');
 
   // Chicken audio — wraps the normal audio with chicken sounds
   const chickenAudio = {
@@ -49,6 +52,7 @@ export function startBrawlMode() {
   const p2 = new Player(game, input, 1, { x: 4, y: 1.5, z: 0 }, 0xffffff, chickenAudio);
   applyCostume(p2.ragdoll, 'chicken');
   p2.costumeKey = 'chicken';
+  p2.ragdoll.voiceManager = new VoiceManager('chicken');
 
   const players = [p1, p2];
   game._allPlayers = players;
@@ -60,6 +64,13 @@ export function startBrawlMode() {
   // Camera
   const cam = new CameraController(game.camera);
   game.onUpdate((dt) => cam.update(dt, players));
+
+  // Replay system
+  const replay = new ReplaySystem(game);
+  replay.onPlayerDeath = () => {
+    replay.playCornerReplay(3);
+  };
+  replay.startRecording();
 
   // Match manager — first to 3 rounds
   const match = new MatchManager(game, players);
@@ -78,6 +89,7 @@ export function startBrawlMode() {
       const idx = players.indexOf(data.winner);
       hud.showCenter(data.winner ? `P${idx + 1} wins!` : 'Draw!', 2.5);
       if (data.winner) audio.playWin();
+      replay.playCornerReplay(3);
     }
     if (state === 'matchEnd') {
       const idx = players.indexOf(data.winner);
@@ -85,9 +97,8 @@ export function startBrawlMode() {
       audio.playWin();
       audio.stopMusic();
       audio.stopDishWhir();
-      // Winner celebrates!
       if (data.winner?.ragdoll) data.winner.ragdoll.startCelebration();
-      setTimeout(() => location.reload(), 5000);
+      replay.playFullReplay(7, () => location.reload());
     }
   };
   match.startMatch();

@@ -1,16 +1,28 @@
 import { COSTUMES, COSTUME_KEYS } from '../../character/Costumes.js';
 
+const SIZE_OPTIONS = [
+  { label: 'Tiny', scale: 0.5 },
+  { label: 'Small', scale: 0.7 },
+  { label: 'Normal', scale: 1.0 },
+  { label: 'Big', scale: 1.5 },
+  { label: 'Huge', scale: 2.0 },
+];
+
+const DEFAULT_SIZE_INDEX = 2; // Normal
+
 export class CostumeSelectScreen {
   constructor(container, playerCount) {
     this.container = container;
     this.playerCount = playerCount;
     this.selections = {};
+    this.sizeSelections = {};
     this.confirmed = new Set();
     this.onReady = null;
     this.element = null;
 
     for (let i = 0; i < playerCount; i++) {
       this.selections[i] = 0;
+      this.sizeSelections[i] = DEFAULT_SIZE_INDEX;
     }
   }
 
@@ -26,21 +38,36 @@ export class CostumeSelectScreen {
     this.updateDisplay();
 
     this.handler = (e) => {
-      if (e.code === 'KeyA') this.navigate(0, -1);
-      if (e.code === 'KeyD') this.navigate(0, 1);
-      if (e.code === 'KeyW') this.confirm(0);
+      if (e.code === 'KeyW') this.navigate(0, -1);
+      if (e.code === 'KeyS') this.navigate(0, 1);
+      if (e.code === 'KeyA') this.navigateSize(0, -1);
+      if (e.code === 'KeyD') this.navigateSize(0, 1);
 
-      if (e.code === 'ArrowLeft') this.navigate(1, -1);
-      if (e.code === 'ArrowRight') this.navigate(1, 1);
-      if (e.code === 'ArrowUp') this.confirm(1);
+      if (e.code === 'ArrowUp') this.navigate(1, -1);
+      if (e.code === 'ArrowDown') this.navigate(1, 1);
+      if (e.code === 'ArrowLeft') this.navigateSize(1, -1);
+      if (e.code === 'ArrowRight') this.navigateSize(1, 1);
 
-      if (e.code === 'Enter' && this.confirmed.size >= this.playerCount) {
-        this.hide();
-        const result = {};
+      if (e.code === 'Enter') {
+        // Confirm unconfirmed players first, then start if all confirmed
+        let anyConfirmed = false;
         for (let i = 0; i < this.playerCount; i++) {
-          result[i] = COSTUME_KEYS[this.selections[i]];
+          if (!this.confirmed.has(i)) {
+            this.confirm(i);
+            anyConfirmed = true;
+            break;
+          }
         }
-        if (this.onReady) this.onReady(result);
+        if (!anyConfirmed && this.confirmed.size >= this.playerCount) {
+          this.hide();
+          const costumeResult = {};
+          const sizeResult = {};
+          for (let i = 0; i < this.playerCount; i++) {
+            costumeResult[i] = COSTUME_KEYS[this.selections[i]];
+            sizeResult[i] = SIZE_OPTIONS[this.sizeSelections[i]].scale;
+          }
+          if (this.onReady) this.onReady(costumeResult, sizeResult);
+        }
       }
     };
     window.addEventListener('keydown', this.handler);
@@ -50,6 +77,13 @@ export class CostumeSelectScreen {
     if (this.confirmed.has(player)) return;
     const len = COSTUME_KEYS.length;
     this.selections[player] = (this.selections[player] + dir + len) % len;
+    this.updateDisplay();
+  }
+
+  navigateSize(player, dir) {
+    if (this.confirmed.has(player)) return;
+    const len = SIZE_OPTIONS.length;
+    this.sizeSelections[player] = (this.sizeSelections[player] + dir + len) % len;
     this.updateDisplay();
   }
 
@@ -64,7 +98,9 @@ export class CostumeSelectScreen {
     for (let i = 0; i < this.playerCount; i++) {
       const key = COSTUME_KEYS[this.selections[i]];
       const costume = COSTUMES[key];
+      const sizeOption = SIZE_OPTIONS[this.sizeSelections[i]];
       const confirmed = this.confirmed.has(i);
+      const previewSize = Math.round(60 * sizeOption.scale);
       cards.push(`
         <div style="
           padding: 20px; margin: 10px;
@@ -73,12 +109,13 @@ export class CostumeSelectScreen {
           border-radius: 12px; text-align: center; min-width: 160px;
         ">
           <div style="font-size: 20px; margin-bottom: 8px;">P${i + 1}</div>
-          <div style="font-size: 32px; margin: 10px 0;">
-            <div style="width:60px;height:60px;border-radius:50%;margin:0 auto;background:#${costume.torso.color.toString(16).padStart(6,'0')};"></div>
+          <div style="font-size: 32px; margin: 10px 0; height: 120px; display: flex; align-items: center; justify-content: center;">
+            <div style="width:${previewSize}px;height:${previewSize}px;border-radius:50%;background:#${costume.torso.color.toString(16).padStart(6,'0')};transition:all 0.15s;"></div>
           </div>
           <div style="font-size: 18px;">${costume.name}</div>
-          <div style="font-size: 12px; margin-top: 6px;">
-            ${confirmed ? 'READY!' : i === 0 ? 'A/D browse, W confirm' : 'Left/Right browse, Up confirm'}
+          <div style="font-size: 14px; color: #aaf; margin-top: 4px;">${sizeOption.label} (${sizeOption.scale}x)</div>
+          <div style="font-size: 12px; margin-top: 6px; color: #888;">
+            ${confirmed ? '<span style="color:#4f4;">READY!</span>' : i === 0 ? 'W/S costume · A/D size · Enter confirm' : 'Up/Down costume · Left/Right size · Enter confirm'}
           </div>
         </div>
       `);

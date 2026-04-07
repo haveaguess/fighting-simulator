@@ -17,9 +17,9 @@ export const PLAYER_2_KEYS = {
   [Actions.MOVE_RIGHT]: 'ArrowRight',
   [Actions.MOVE_FORWARD]: 'ArrowUp',
   [Actions.MOVE_BACKWARD]: 'ArrowDown',
-  [Actions.JUMP]: 'Slash',
-  [Actions.PUNCH]: 'Period',
-  [Actions.KICK]: 'Comma',
+  [Actions.JUMP]: 'AltRight',
+  [Actions.PUNCH]: 'Backspace',
+  [Actions.KICK]: 'Enter',
   [Actions.GRAB]: 'KeyM',
-  [Actions.HEADBUTT]: 'Semicolon',
+  [Actions.HEADBUTT]: 'ShiftRight',
 };

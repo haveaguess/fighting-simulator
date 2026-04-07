@@ -341,19 +341,24 @@ export class Landslide extends Arena {
         const dz = pPos.z - rock.position.z;
         const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
 
-        if (dist < 1.0) {
-          // BURN! 30% damage
-          p.ragdoll.balance.takeDamage(30);
+        // Burn range scales with character size so big guys get hit too
+        const charScale = p.ragdoll.scale || 1;
+        const burnRange = 0.8 + 0.4 * charScale;
+        if (dist < burnRange) {
+          // BURN! Damage scales with size — big guys take more
+          p.ragdoll.balance.takeDamage(25 + 5 * charScale);
           this.rockBurnCooldowns.set(p, performance.now());
 
-          // Knockback away from rock
-          const knockDir = new CANNON.Vec3(dx, 0.5, dz);
+          // Knockback scaled to target mass for consistent push
+          const knockDir = new CANNON.Vec3(dx, 0.3, dz);
           if (knockDir.length() > 0.01) knockDir.normalize();
           const knockMult = p.ragdoll.balance.getKnockbackMultiplier();
+          const mass = p.ragdoll.getTorso().mass;
+          const knockImpulse = Math.min(15 * knockMult, 6 * mass);
           p.ragdoll.getTorso().applyImpulse(new CANNON.Vec3(
-            knockDir.x * 15 * knockMult,
-            knockDir.y * 10 * knockMult,
-            knockDir.z * 15 * knockMult
+            knockDir.x * knockImpulse,
+            knockDir.y * knockImpulse,
+            knockDir.z * knockImpulse
           ));
 
           break; // Only one burn per frame per player

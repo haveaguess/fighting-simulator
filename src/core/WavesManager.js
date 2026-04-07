@@ -1,5 +1,6 @@
 import { AIPlayer } from '../character/AIPlayer.js';
 import { applyCostume, COSTUME_KEYS } from '../character/Costumes.js';
+import { VoiceManager } from '../audio/VoiceManager.js';
 import { SpawnDoor } from '../arenas/SpawnDoor.js';
 
 const ENEMY_COLORS = [
@@ -7,7 +8,10 @@ const ENEMY_COLORS = [
   0x990000, 0xbb1100, 0x771100, 0xdd3300,
 ];
 
-const ENEMY_COSTUMES = ['ninja', 'robot', 'pirate', 'dinosaur'];
+const ENEMY_COSTUMES = ['ninja', 'robot', 'pirate', 'dinosaur', 'redChicken'];
+
+// Gang Beasts-style random sizes: tiny, small, normal, big, huge
+const ENEMY_SCALES = [0.5, 0.5, 0.7, 1.0, 1.0, 1.0, 1.4, 1.8, 2.0];
 
 export class WavesManager {
   constructor(game, humanPlayers, arena, damageSystem, hud, audio) {
@@ -101,6 +105,7 @@ export class WavesManager {
         doorIndex: i % this.doors.length,
         costumeIndex: i,
         colorIndex: i,
+        scale: ENEMY_SCALES[Math.floor(Math.random() * ENEMY_SCALES.length)],
       });
     }
     this.spawnTimer = 0;
@@ -111,7 +116,7 @@ export class WavesManager {
     const spawnPos = door.getSpawnPosition();
     const color = ENEMY_COLORS[config.colorIndex % ENEMY_COLORS.length];
 
-    const ai = new AIPlayer(this.game, this.allEntities, spawnPos, color, this.audio);
+    const ai = new AIPlayer(this.game, this.allEntities, spawnPos, color, this.audio, config.scale || 1.0);
     ai.isAI = true;
     ai.team = 'enemy';
     ai.controller.team = 'enemy';
@@ -121,6 +126,7 @@ export class WavesManager {
     ai.costumeKey = costume;
     ai.damageSystem = this.damageSystem;
     applyCostume(ai.ragdoll, costume);
+    ai.ragdoll.voiceManager = new VoiceManager(costume);
     this.damageSystem.register(ai.ragdoll);
     this.enemies.push(ai);
     this.allEntities.push(ai);

@@ -2,9 +2,10 @@ import { Ragdoll } from './Ragdoll.js';
 import { CharacterController } from './CharacterController.js';
 import { AIController as AI } from '../ai/AIController.js';
 import { applyCostume } from './Costumes.js';
+import { VoiceManager } from '../audio/VoiceManager.js';
 
 export class AIPlayer {
-  constructor(game, allPlayers, position, color, audio) {
+  constructor(game, allPlayers, position, color, audio, scale = 1.0) {
     this.game = game;
     this.allPlayers = allPlayers;
     this.alive = true;
@@ -13,8 +14,9 @@ export class AIPlayer {
     this.color = color;
     this.costumeKey = null;
     this.audio = audio;
+    this.scale = scale;
 
-    this.ragdoll = new Ragdoll(game, position, color);
+    this.ragdoll = new Ragdoll(game, position, color, scale);
     this.controller = new CharacterController(this.ragdoll, game, audio);
     this.ai = new AI();
 
@@ -29,6 +31,7 @@ export class AIPlayer {
     const pos = this.ragdoll.getPosition();
     if (pos.y < -5 || Math.abs(pos.x) > 20 || Math.abs(pos.z) > 20) {
       this.alive = false;
+      this.ragdoll.voiceManager?.playDeath();
       if (window.__daddyMode && this.game._audio) {
         const audio = this.game._audio;
         const r = Math.random();
@@ -46,9 +49,12 @@ export class AIPlayer {
 
   reset(position) {
     this.ragdoll.destroy();
-    this.ragdoll = new Ragdoll(this.game, position, this.color);
+    this.ragdoll = new Ragdoll(this.game, position, this.color, this.scale);
     this.controller = new CharacterController(this.ragdoll, this.game, this.audio);
-    if (this.costumeKey) applyCostume(this.ragdoll, this.costumeKey);
+    if (this.costumeKey) {
+      applyCostume(this.ragdoll, this.costumeKey);
+      this.ragdoll.voiceManager = new VoiceManager(this.costumeKey);
+    }
     if (this.damageSystem) this.damageSystem.register(this.ragdoll);
     this.alive = true;
   }

@@ -57,6 +57,13 @@ export const COSTUMES = {
     arms: { color: 0xffccaa },
     legs: { color: 0xffff00 },
   },
+  redChicken: {
+    name: 'Red Chicken',
+    head: { color: 0xcc0000, hat: 'comb' },
+    torso: { color: 0xcc0000, scaleX: 1.3, scaleZ: 1.3 },
+    arms: { color: 0xff3333 },
+    legs: { color: 0xff6600 },
+  },
 };
 
 export const COSTUME_KEYS = Object.keys(COSTUMES);
