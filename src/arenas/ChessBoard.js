@@ -80,30 +80,30 @@ export class ChessBoard extends Arena {
       }
     }
 
-    // === BOARD BORDER — raised wooden frame ===
-    const borderThick = 0.8;
-    const borderHeight = 0.8;
+    // === BOARD BORDER — low lip you can be knocked over ===
+    const borderThick = 0.4;
+    const borderHeight = 0.3;
     const half = boardWidth / 2;
     // North/South
     this.addStaticBox(
       { x: boardWidth + borderThick * 2, y: borderHeight, z: borderThick },
-      { x: 0, y: borderHeight / 2 - 0.25, z: -half - borderThick / 2 },
+      { x: 0, y: borderHeight / 2, z: -half - borderThick / 2 },
       0x442211
     );
     this.addStaticBox(
       { x: boardWidth + borderThick * 2, y: borderHeight, z: borderThick },
-      { x: 0, y: borderHeight / 2 - 0.25, z: half + borderThick / 2 },
+      { x: 0, y: borderHeight / 2, z: half + borderThick / 2 },
       0x442211
     );
     // East/West
     this.addStaticBox(
       { x: borderThick, y: borderHeight, z: boardWidth },
-      { x: -half - borderThick / 2, y: borderHeight / 2 - 0.25, z: 0 },
+      { x: -half - borderThick / 2, y: borderHeight / 2, z: 0 },
       0x442211
     );
     this.addStaticBox(
       { x: borderThick, y: borderHeight, z: boardWidth },
-      { x: half + borderThick / 2, y: borderHeight / 2 - 0.25, z: 0 },
+      { x: half + borderThick / 2, y: borderHeight / 2, z: 0 },
       0x442211
     );
 
@@ -124,9 +124,8 @@ export class ChessBoard extends Arena {
     }
 
     // === PIECE ASSIGNMENT ===
-    // Store piece data to be applied to players
+    // Store piece data to be applied to players (checked every frame for new spawns)
     this.pieceAssignments = new Map(); // player -> piece type
-    this._assignmentsDone = false;
 
     // === PIECE HAT INDICATORS ===
     // Each player gets a chess piece shape floating above their head
@@ -339,15 +338,16 @@ export class ChessBoard extends Arena {
   }
 
   _assignPieces() {
-    if (this._assignmentsDone) return;
     const players = this.game._allPlayers || [];
     if (players.length === 0) return;
-    this._assignmentsDone = true;
 
-    // Shuffle pieces and assign
-    const available = [...CHESS_PIECES];
+    let newAssignments = false;
     for (const p of players) {
-      const piece = available[Math.floor(Math.random() * available.length)];
+      // Skip already-assigned players
+      if (this.pieceAssignments.has(p)) continue;
+      if (!p.ragdoll) continue;
+
+      const piece = CHESS_PIECES[Math.floor(Math.random() * CHESS_PIECES.length)];
       this.pieceAssignments.set(p, piece);
 
       // Enclose the player in a chess piece shell
@@ -357,29 +357,30 @@ export class ChessBoard extends Arena {
       const dirs = PIECE_MOVEMENT[piece];
       const speed = PIECE_SPEED[piece];
       this._moveOverrides.set(p.ragdoll, { piece, directions: dirs, speed });
+      newAssignments = true;
     }
 
-    // Show HUD for human players
-    const humanPieces = players
-      .filter(p => !p.isAI)
-      .map(p => {
-        const piece = this.pieceAssignments.get(p);
-        const emoji = { pawn: '♟', rook: '♜', knight: '♞', bishop: '♝', queen: '♛', king: '♚' }[piece];
-        return `P${(p.playerIndex || 0) + 1}: ${emoji} ${piece.toUpperCase()}`;
-      });
-    if (humanPieces.length > 0) {
-      this.hudDiv.textContent = humanPieces.join('  |  ');
-      this.hudDiv.style.display = 'block';
+    // Update HUD when assignments change
+    if (newAssignments) {
+      const humanPieces = players
+        .filter(p => !p.isAI && this.pieceAssignments.has(p))
+        .map(p => {
+          const piece = this.pieceAssignments.get(p);
+          const emoji = { pawn: '♟', rook: '♜', knight: '♞', bishop: '♝', queen: '♛', king: '♚' }[piece];
+          return `P${(p.playerIndex || 0) + 1}: ${emoji} ${piece.toUpperCase()}`;
+        });
+      if (humanPieces.length > 0) {
+        this.hudDiv.textContent = humanPieces.join('  |  ');
+        this.hudDiv.style.display = 'block';
+      }
     }
   }
 
   update(dt) {
     super.update(dt);
 
-    // Assign pieces on first update when players exist
-    if (!this._assignmentsDone) {
-      this._assignPieces();
-    }
+    // Assign pieces to any new players (including late-spawned AI)
+    this._assignPieces();
 
     const players = this.game._allPlayers || [];
     for (const p of players) {
