@@ -173,7 +173,7 @@ export class ChessBoard extends Arena {
       metalness: 0.15,
       roughness: 0.4,
       transparent: true,
-      opacity: 0.55,
+      opacity: 0.75,
     });
 
     // Profile points for LatheGeometry: [Vector2(radius, height)]
@@ -259,7 +259,7 @@ export class ChessBoard extends Arena {
       metalness: 0.15,
       roughness: 0.4,
       transparent: true,
-      opacity: 0.55,
+      opacity: 0.75,
     });
     const group = new THREE.Group();
 
@@ -307,31 +307,36 @@ export class ChessBoard extends Arena {
     // Determine white/black team based on player index
     const players = this.game._allPlayers || [];
     const idx = players.indexOf(player);
-    const isWhiteTeam = idx % 2 === 0;
+    const isWhiteTeam = !player.isAI; // humans are white, AI are black
     const pieceColor = isWhiteTeam ? 0xf5f0e0 : 0x2a2520;
 
     const s = ragdoll.scale || 1;
 
     // Create the chess piece shell that surrounds the character
     const pieceShell = this._createPieceShape(pieceType, s, pieceColor);
-    // Offset so the base sits at the character's feet
     pieceShell.position.y = -0.5 * s;
     ragdoll.meshes.torso.add(pieceShell);
-    this._pieceShells = this._pieceShells || [];
-    this._pieceShells.push(pieceShell);
 
-    // Make the character body semi-transparent inside the piece
+    // Floating piece name label above the character
+    const emoji = { pawn: '♟', rook: '♜', knight: '♞', bishop: '♝', queen: '♛', king: '♚' }[pieceType] || '';
+    const label = this._createLabel(`${emoji} ${pieceType.toUpperCase()}`, isWhiteTeam ? 0xffffff : 0xff8844);
+    label.scale.set(1.5 * s, 0.5 * s, 1);
+    ragdoll._chessPieceLabel = label;
+    this.game.scene.add(label);
+    this.meshes.push(label);
+
+    // Don't make body transparent — keep characters fully visible
+    // Just tint them to match their team
+    const tint = isWhiteTeam ? 0xeeeedd : 0x554433;
     const bodyParts = ['torso', 'leftUpperArm', 'rightUpperArm',
       'leftLowerArm', 'rightLowerArm', 'leftUpperLeg', 'rightUpperLeg',
       'leftLowerLeg', 'rightLowerLeg'];
     for (const part of bodyParts) {
       const mesh = ragdoll.meshes[part];
       if (mesh?.material) {
-        mesh.material.transparent = true;
-        mesh.material.opacity = 0.3;
+        mesh.material.color.setHex(tint);
       }
     }
-    // Keep head visible (it pokes out the top)
     if (ragdoll.meshes.head?.material) {
       ragdoll.meshes.head.material.color.setHex(isWhiteTeam ? 0xffeecc : 0x443322);
     }
@@ -341,27 +346,42 @@ export class ChessBoard extends Arena {
     const players = this.game._allPlayers || [];
     if (players.length === 0) return;
 
-    let newAssignments = false;
+    let hudChanged = false;
     for (const p of players) {
-      // Skip already-assigned players
-      if (this.pieceAssignments.has(p)) continue;
       if (!p.ragdoll) continue;
 
-      const piece = CHESS_PIECES[Math.floor(Math.random() * CHESS_PIECES.length)];
-      this.pieceAssignments.set(p, piece);
+      // Check if this player needs a piece assigned (new player)
+      if (!this.pieceAssignments.has(p)) {
+        const piece = CHESS_PIECES[Math.floor(Math.random() * CHESS_PIECES.length)];
+        this.pieceAssignments.set(p, piece);
+        hudChanged = true;
+      }
 
-      // Enclose the player in a chess piece shell
-      this._applyPieceLook(p, piece);
+      const piece = this.pieceAssignments.get(p);
 
-      // Store movement constraint
-      const dirs = PIECE_MOVEMENT[piece];
-      const speed = PIECE_SPEED[piece];
-      this._moveOverrides.set(p.ragdoll, { piece, directions: dirs, speed });
-      newAssignments = true;
+      // Check if ragdoll changed (player was reset between waves)
+      // Track by checking if our movement override references the current ragdoll
+      const existingOverride = this._moveOverrides.get(p.ragdoll);
+      if (!existingOverride) {
+        // New ragdoll — re-apply piece look and movement constraint
+        this._applyPieceLook(p, piece);
+        const dirs = PIECE_MOVEMENT[piece];
+        const speed = PIECE_SPEED[piece];
+        this._moveOverrides.set(p.ragdoll, { piece, directions: dirs, speed });
+      }
     }
 
-    // Update HUD when assignments change
-    if (newAssignments) {
+    // Clean up stale overrides for destroyed ragdolls
+    for (const [ragdoll] of this._moveOverrides) {
+      let found = false;
+      for (const p of players) {
+        if (p.ragdoll === ragdoll) { found = true; break; }
+      }
+      if (!found) this._moveOverrides.delete(ragdoll);
+    }
+
+    // Update HUD
+    if (hudChanged) {
       const humanPieces = players
         .filter(p => !p.isAI && this.pieceAssignments.has(p))
         .map(p => {
@@ -432,13 +452,12 @@ export class ChessBoard extends Arena {
         body.velocity.z *= 0.8;
       }
 
-      // (Piece shell is parented to torso mesh, moves automatically)
-      const _hat = this.pieceHats.get(p);
-      if (_hat) {
+      // Position floating piece name label
+      const label = p.ragdoll._chessPieceLabel;
+      if (label) {
         const pos = p.ragdoll.getPosition();
         const s = p.ragdoll.scale || 1;
-        hat.position.set(pos.x, pos.y + 1.3 * s, pos.z);
-        hat.rotation.y += dt * 2; // gentle spin
+        label.position.set(pos.x, pos.y + 1.5 * s, pos.z);
       }
     }
   }
