@@ -3,6 +3,7 @@ const BASE_ARENAS = [
   { key: 'factory', name: 'Factory', description: 'Conveyors + crushers', color: '#555555' },
   { key: 'wrestlingRing', name: 'Wrestling Ring', description: 'Bouncy ropes + electrify', color: '#336633' },
   { key: 'landslide', name: 'Volcano', description: 'Trigger eruption — lava rocks burn 30% HP', color: '#ff4400' },
+  { key: 'chessBoard', name: 'Chess Board', description: 'Move like your chess piece!', color: '#664433' },
 ];
 
 const DADDY_ARENAS = [

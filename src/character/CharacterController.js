@@ -71,13 +71,21 @@ export class CharacterController {
     this._windupTimer = 0;
     this._windupAction = null; // { type, impulse, damage }
 
-    // Damage per hit
-    this.punchDamage = Math.round(20 * sqrtS);
-    this.kickDamage = Math.round(15 * sqrtS);
-    this.headbuttDamage = Math.round(25 * sqrtS);
-    this.grabPunchDamage = Math.round(20 * sqrtS);
-    this.grabHeadbuttDamage = Math.round(25 * sqrtS);
-    this.throwDamage = Math.round(15 * sqrtS);
+    // Damage per hit — big guys hit HARD, small guys hit soft
+    // Using s (not sqrtS) so damage scales more aggressively with size
+    this.punchDamage = Math.round(15 + 10 * s);
+    this.kickDamage = Math.round(12 + 8 * s);
+    this.headbuttDamage = Math.round(20 + 12 * s);
+    this.grabPunchDamage = Math.round(15 + 10 * s);
+    this.grabHeadbuttDamage = Math.round(20 + 12 * s);
+    this.throwDamage = Math.round(12 + 8 * s);
+
+    // Mount cooldown — can't immediately remount after being shaken off
+    this._mountCooldown = 0;
+
+    // Mount hint HUD (only for human players — set externally)
+    this.isHuman = false;
+    this._hintDiv = null;
 
     this.team = null;
   }
@@ -88,6 +96,9 @@ export class CharacterController {
       this._dismount();
       return;
     }
+
+    // Tick mount cooldown
+    if (this._mountCooldown > 0) this._mountCooldown -= dt;
 
     const torso = this.ragdoll.getTorso();
     const isGrabbing = this.grabbedPlayer !== null;
@@ -108,30 +119,33 @@ export class CharacterController {
     // When mounted, big guy can only struggle — can't attack, movement slowed
     if (this.mountedBy) {
       this.mountShakeTimer += dt;
+      // Show hint for big guy
+      if (this.isHuman) this._showHint('SOMEONE ON YOUR BACK! Wait to grab them off...');
       // Slow movement while mounted (struggling)
       torso.velocity.x *= 0.95;
       torso.velocity.z *= 0.95;
-      // Slow sway — 2-3 oscillations per second, like struggling to reach behind back
+      // Slow sway
       const freq = 2.5;
       const amplitude = 0.3 + this.mountShakeTimer * 0.2;
       this.ragdoll.facingAngle = this.ragdoll.facingAngle + Math.cos(this.mountShakeTimer * freq * Math.PI * 2) * amplitude * dt * 3;
 
-      // After 2.5 seconds: big guy grabs rider off and bashes them
+      // After 2.5 seconds: big guy grabs rider off and SLAMS them
       if (this.mountShakeTimer > 2.5) {
         const rider = this.mountedBy;
         this._shakeOffRider();
-        // Grab-and-bash: damage + launch scaled to rider's mass
         if (rider.ragdoll?.bodies?.torso) {
           const riderMass = rider.ragdoll.bodies.torso.mass;
           const spinDir = (Math.random() > 0.5 ? 1 : -1);
-          // Cap velocity change to ~6 so small riders don't fly to the moon
           const launchImp = Math.min(8 * riderMass, 15);
           rider.ragdoll.bodies.torso.applyImpulse(
             new CANNON.Vec3(spinDir * launchImp * 0.8, launchImp, (Math.random() - 0.5) * launchImp * 0.5)
           );
-          rider.ragdoll.balance.takeDamage(25);
+          // Heavy slam damage — 35! Staying on too long is very punishing
+          rider.ragdoll.balance.takeDamage(35);
           if (this.audio) this.audio.playHit();
           if (this.audio) this.audio.playKick();
+          // Set mount cooldown on the rider — can't remount for 3 seconds
+          if (rider.controller) rider.controller._mountCooldown = 3.0;
         }
       }
       // Skip all attacks/movement — just struggle
@@ -146,6 +160,11 @@ export class CharacterController {
       this.mountTimer += dt;
       // Update mount progress bar on rider (0 = just mounted, 1 = about to be thrown)
       this.ragdoll.mountProgress = Math.min(this.mountTimer / 2.5, 1);
+      // Show hint
+      if (this.isHuman) {
+        const timeLeft = Math.max(0, 2.5 - this.mountTimer).toFixed(1);
+        this._showHint(`ON THEIR BACK! PUNCH to hit, JUMP to escape! (${timeLeft}s)`);
+      }
       const targetBody = this.mountedOn.ragdoll?.bodies?.torso;
       if (!targetBody || !this.mountedOn.alive) {
         this._dismount();
@@ -333,11 +352,13 @@ export class CharacterController {
 
   // === BACK MOUNT: small player lands on big player's back ===
   _checkBackMount() {
+    // Can't mount if on cooldown (just got shaken off)
+    if (this._mountCooldown > 0) return;
+
     const myScale = this.scale;
     const myBody = this.ragdoll.getTorso();
     const myPos = myBody.position;
 
-    // Must be at least one size step smaller than target (any scale can mount if target is bigger)
     // Must be falling down
     if (myBody.velocity.y > 0) return;
 
@@ -599,5 +620,27 @@ export class CharacterController {
     }
     this.grabbedPlayer = null;
     this.ragdoll.grabTarget = null;
+  }
+
+  _showHint(text) {
+    if (!this._hintDiv) {
+      this._hintDiv = document.createElement('div');
+      this._hintDiv.style.cssText = `
+        position: fixed; top: 15%; left: 50%; transform: translateX(-50%);
+        background: rgba(0,0,0,0.75); color: #ffcc00;
+        font-family: 'Arial Black', Arial, sans-serif; font-size: 18px;
+        padding: 10px 24px; border-radius: 10px;
+        z-index: 800; pointer-events: none; text-align: center;
+        text-shadow: 0 0 8px rgba(255,200,0,0.5);
+      `;
+      document.body.appendChild(this._hintDiv);
+    }
+    this._hintDiv.textContent = text;
+    this._hintDiv.style.display = 'block';
+    // Auto-hide after a frame if not refreshed
+    clearTimeout(this._hintTimeout);
+    this._hintTimeout = setTimeout(() => {
+      if (this._hintDiv) this._hintDiv.style.display = 'none';
+    }, 200);
   }
 }

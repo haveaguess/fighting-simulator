@@ -25,6 +25,7 @@ import { Factory } from './arenas/Factory.js';
 import { WrestlingRing } from './arenas/WrestlingRing.js';
 import { Landslide } from './arenas/Landslide.js';
 import { LandslideChaos } from './arenas/LandslideChaos.js';
+import { ChessBoard } from './arenas/ChessBoard.js';
 
 const PLAYER_COLORS = [
   0xff4444, 0x4444ff, 0x44ff44, 0xffff44,
@@ -37,6 +38,7 @@ const ARENA_MAP = {
   wrestlingRing: WrestlingRing,
   landslide: Landslide,
   landslideChaos: LandslideChaos,
+  chessBoard: ChessBoard,
 };
 
 export class GameApp {
@@ -208,6 +210,7 @@ export class GameApp {
       const p = new Player(this.game, this.input, idx, spawnPoints[this.players.length], color, this.audio, scale);
       const costumeKey = costumeChoices[humanIndex] || COSTUME_KEYS[0];
       p.costumeKey = costumeKey;
+      p.controller.isHuman = true;
       p.damageSystem = this.damageSystem;
       applyCostume(p.ragdoll, costumeKey);
       p.ragdoll.voiceManager = new VoiceManager(costumeKey);
@@ -308,6 +311,7 @@ export class GameApp {
       const p = new Player(this.game, this.input, idx, spawnPoints[this.players.length], color, this.audio, scale);
       const costumeKey = costumeChoices[humanIndex] || COSTUME_KEYS[0];
       p.costumeKey = costumeKey;
+      p.controller.isHuman = true;
       p.damageSystem = this.damageSystem;
       applyCostume(p.ragdoll, costumeKey);
       p.ragdoll.voiceManager = new VoiceManager(costumeKey);
