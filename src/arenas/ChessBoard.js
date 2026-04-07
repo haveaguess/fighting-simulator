@@ -55,18 +55,28 @@ export class ChessBoard extends Arena {
     const boardWidth = tileSize * boardSize;
     const offset = -boardWidth / 2 + tileSize / 2;
 
-    // === CHESS BOARD TILES ===
+    // === SOLID PLATFORM underneath (physics — one big slab, no cracks) ===
+    this.addStaticBox(
+      { x: boardWidth + 1, y: 1, z: boardWidth + 1 },
+      { x: 0, y: -0.5, z: 0 },
+      0x553322
+    );
+
+    // === CHESS BOARD TILES (visual only — sit on top of the platform) ===
     for (let row = 0; row < boardSize; row++) {
       for (let col = 0; col < boardSize; col++) {
         const isWhite = (row + col) % 2 === 0;
         const color = isWhite ? 0xeeddcc : 0x664433;
         const x = offset + col * tileSize;
         const z = offset + row * tileSize;
-        this.addStaticBox(
-          { x: tileSize, y: 0.5, z: tileSize },
-          { x, y: -0.25, z },
-          color
+        const tileMesh = new THREE.Mesh(
+          new THREE.BoxGeometry(tileSize - 0.02, 0.1, tileSize - 0.02),
+          new THREE.MeshStandardMaterial({ color })
         );
+        tileMesh.position.set(x, 0.05, z);
+        tileMesh.receiveShadow = true;
+        game.scene.add(tileMesh);
+        this.meshes.push(tileMesh);
       }
     }
 
@@ -199,6 +209,56 @@ export class ChessBoard extends Arena {
     return mesh;
   }
 
+  _applyPieceLook(player, pieceType) {
+    const ragdoll = player.ragdoll;
+    if (!ragdoll) return;
+
+    const color = PIECE_COLORS[pieceType];
+    // Determine if this player is "white" or "black" team based on index
+    const players = this.game._allPlayers || [];
+    const idx = players.indexOf(player);
+    const isWhiteTeam = idx % 2 === 0;
+    const baseColor = isWhiteTeam ? 0xeeeeee : 0x333333;
+    const accentColor = color;
+
+    // Recolor all body parts
+    const bodyParts = ['torso', 'head', 'leftUpperArm', 'rightUpperArm',
+      'leftLowerArm', 'rightLowerArm', 'leftUpperLeg', 'rightUpperLeg',
+      'leftLowerLeg', 'rightLowerLeg'];
+    for (const part of bodyParts) {
+      const mesh = ragdoll.meshes[part];
+      if (mesh?.material) {
+        mesh.material.color.setHex(baseColor);
+        mesh.material.metalness = 0.2;
+        mesh.material.roughness = 0.4;
+      }
+    }
+
+    // Add a circular base plate under the character (like a real chess piece)
+    const s = ragdoll.scale || 1;
+    const basePlate = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.45 * s, 0.5 * s, 0.1 * s, 16),
+      new THREE.MeshStandardMaterial({ color: baseColor, metalness: 0.3, roughness: 0.3 })
+    );
+    basePlate.position.y = -0.45 * s;
+    ragdoll.meshes.torso.add(basePlate);
+
+    // Add piece-specific accent to the head
+    const headMesh = ragdoll.meshes.head;
+    if (headMesh) {
+      headMesh.material.color.setHex(baseColor);
+      // Add colored band around the head
+      const band = new THREE.Mesh(
+        new THREE.TorusGeometry(0.3 * s, 0.04 * s, 8, 16),
+        new THREE.MeshStandardMaterial({ color: accentColor, metalness: 0.5 })
+      );
+      band.rotation.x = Math.PI / 2;
+      band.position.y = -0.05 * s;
+      headMesh.add(band);
+      this.meshes.push(band);
+    }
+  }
+
   _assignPieces() {
     if (this._assignmentsDone) return;
     const players = this.game._allPlayers || [];
@@ -210,6 +270,9 @@ export class ChessBoard extends Arena {
     for (const p of players) {
       const piece = available[Math.floor(Math.random() * available.length)];
       this.pieceAssignments.set(p, piece);
+
+      // Reskin the player to look like a chess piece
+      this._applyPieceLook(p, piece);
 
       // Create hat
       const hat = this._createPieceHat(piece);
