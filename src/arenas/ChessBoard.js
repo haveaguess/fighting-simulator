@@ -165,97 +165,176 @@ export class ChessBoard extends Arena {
     return sprite;
   }
 
-  _createPieceHat(pieceType) {
-    const color = PIECE_COLORS[pieceType];
-    const mat = new THREE.MeshStandardMaterial({ color, metalness: 0.3, roughness: 0.5 });
-    let mesh;
+  // Create chess piece shape using LatheGeometry (profile revolved around Y axis)
+  // Returns a full-size piece mesh that encloses the character
+  _createPieceShape(pieceType, scale, color) {
+    const s = scale || 1;
+    const mat = new THREE.MeshStandardMaterial({
+      color,
+      metalness: 0.15,
+      roughness: 0.4,
+      transparent: true,
+      opacity: 0.55,
+    });
 
+    // Profile points for LatheGeometry: [Vector2(radius, height)]
+    // Heights normalized to ~0-2 range, will be scaled by character size
+    let points;
     switch (pieceType) {
       case 'pawn':
-        mesh = new THREE.Mesh(new THREE.SphereGeometry(0.15, 8, 8), mat);
+        points = [
+          [0, 0], [0.4, 0], [0.42, 0.05], [0.35, 0.1], [0.2, 0.15],
+          [0.15, 0.4], [0.18, 0.5], [0.22, 0.55], [0.22, 0.6],
+          [0.18, 0.65], [0.12, 0.8], [0.18, 0.95], [0.22, 1.05],
+          [0.2, 1.15], [0.12, 1.2], [0, 1.25],
+        ];
         break;
       case 'rook':
-        mesh = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.3, 0.25), mat);
+        points = [
+          [0, 0], [0.45, 0], [0.47, 0.05], [0.38, 0.1], [0.22, 0.15],
+          [0.18, 0.5], [0.2, 0.6], [0.25, 0.65], [0.25, 0.7],
+          [0.2, 0.75], [0.18, 0.9], [0.2, 1.0], [0.28, 1.05],
+          [0.3, 1.15], [0.3, 1.25], [0.25, 1.25], [0.25, 1.15],
+          [0.15, 1.15], [0.15, 1.25], [0.08, 1.25], [0.08, 1.1],
+          [0, 1.1],
+        ];
         break;
-      case 'knight': {
-        // L-shaped indicator
-        const group = new THREE.Group();
-        group.add(new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.3, 0.1), mat));
-        const top = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.1, 0.1), mat);
-        top.position.set(0.05, 0.15, 0);
-        group.add(top);
-        mesh = group;
-        break;
-      }
+      case 'knight':
+        // Knight is asymmetric — use a group instead of lathe
+        return this._createKnightShape(s, color);
       case 'bishop':
-        mesh = new THREE.Mesh(new THREE.ConeGeometry(0.12, 0.35, 8), mat);
+        points = [
+          [0, 0], [0.42, 0], [0.44, 0.05], [0.36, 0.1], [0.2, 0.15],
+          [0.16, 0.5], [0.19, 0.6], [0.22, 0.65], [0.22, 0.7],
+          [0.18, 0.75], [0.14, 0.9], [0.16, 1.0], [0.2, 1.1],
+          [0.15, 1.2], [0.08, 1.35], [0.04, 1.45], [0.06, 1.5],
+          [0.04, 1.55], [0, 1.6],
+        ];
         break;
       case 'queen':
-        mesh = new THREE.Mesh(new THREE.ConeGeometry(0.15, 0.4, 5), mat);
+        points = [
+          [0, 0], [0.45, 0], [0.47, 0.05], [0.38, 0.1], [0.22, 0.15],
+          [0.18, 0.5], [0.2, 0.6], [0.25, 0.65], [0.25, 0.7],
+          [0.2, 0.75], [0.16, 0.9], [0.18, 1.0], [0.22, 1.1],
+          [0.18, 1.2], [0.12, 1.35], [0.16, 1.45], [0.2, 1.5],
+          [0.14, 1.6], [0.08, 1.65], [0.1, 1.7], [0.06, 1.75],
+          [0, 1.8],
+        ];
         break;
-      case 'king': {
-        // Cross shape
-        const group = new THREE.Group();
-        group.add(new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.35, 0.08), mat));
-        const cross = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.08, 0.08), mat);
-        cross.position.y = 0.1;
-        group.add(cross);
-        mesh = group;
+      case 'king':
+        points = [
+          [0, 0], [0.45, 0], [0.47, 0.05], [0.38, 0.1], [0.22, 0.15],
+          [0.18, 0.5], [0.2, 0.6], [0.25, 0.65], [0.25, 0.7],
+          [0.2, 0.75], [0.16, 0.9], [0.18, 1.0], [0.22, 1.1],
+          [0.18, 1.2], [0.1, 1.4], [0.06, 1.5], [0.08, 1.55],
+          [0.04, 1.6], [0, 1.65],
+        ];
         break;
-      }
       default:
-        mesh = new THREE.Mesh(new THREE.SphereGeometry(0.15, 8, 8), mat);
+        points = [[0, 0], [0.3, 0], [0.2, 0.5], [0.15, 1.0], [0, 1.1]];
     }
+
+    const vectors = points.map(([r, h]) => new THREE.Vector2(r * s, h * s));
+    const geo = new THREE.LatheGeometry(vectors, 24);
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.castShadow = true;
+
+    // Add cross on top for king
+    if (pieceType === 'king') {
+      const crossMat = mat.clone();
+      crossMat.opacity = 0.7;
+      const vert = new THREE.Mesh(new THREE.BoxGeometry(0.04 * s, 0.25 * s, 0.04 * s), crossMat);
+      vert.position.y = 1.75 * s;
+      mesh.add(vert);
+      const horiz = new THREE.Mesh(new THREE.BoxGeometry(0.18 * s, 0.04 * s, 0.04 * s), crossMat);
+      horiz.position.y = 1.8 * s;
+      mesh.add(horiz);
+    }
+
     return mesh;
+  }
+
+  _createKnightShape(s, color) {
+    const mat = new THREE.MeshStandardMaterial({
+      color,
+      metalness: 0.15,
+      roughness: 0.4,
+      transparent: true,
+      opacity: 0.55,
+    });
+    const group = new THREE.Group();
+
+    // Base (lathe)
+    const basePoints = [
+      [0, 0], [0.42, 0], [0.44, 0.05], [0.35, 0.1], [0.2, 0.15], [0.18, 0.5], [0, 0.5],
+    ].map(([r, h]) => new THREE.Vector2(r * s, h * s));
+    group.add(new THREE.Mesh(new THREE.LatheGeometry(basePoints, 16), mat));
+
+    // Horse head — elongated box tilted forward
+    const head = new THREE.Mesh(
+      new THREE.BoxGeometry(0.2 * s, 0.6 * s, 0.3 * s),
+      mat
+    );
+    head.position.set(0, 0.8 * s, 0.05 * s);
+    head.rotation.x = -0.3;
+    group.add(head);
+
+    // Snout
+    const snout = new THREE.Mesh(
+      new THREE.BoxGeometry(0.15 * s, 0.15 * s, 0.2 * s),
+      mat
+    );
+    snout.position.set(0, 0.65 * s, 0.2 * s);
+    group.add(snout);
+
+    // Ears
+    const ear = new THREE.Mesh(
+      new THREE.ConeGeometry(0.05 * s, 0.15 * s, 4),
+      mat
+    );
+    ear.position.set(0.06 * s, 1.1 * s, 0);
+    group.add(ear);
+    const ear2 = ear.clone();
+    ear2.position.x = -0.06 * s;
+    group.add(ear2);
+
+    return group;
   }
 
   _applyPieceLook(player, pieceType) {
     const ragdoll = player.ragdoll;
     if (!ragdoll) return;
 
-    const color = PIECE_COLORS[pieceType];
-    // Determine if this player is "white" or "black" team based on index
+    // Determine white/black team based on player index
     const players = this.game._allPlayers || [];
     const idx = players.indexOf(player);
     const isWhiteTeam = idx % 2 === 0;
-    const baseColor = isWhiteTeam ? 0xeeeeee : 0x333333;
-    const accentColor = color;
+    const pieceColor = isWhiteTeam ? 0xf5f0e0 : 0x2a2520;
 
-    // Recolor all body parts
-    const bodyParts = ['torso', 'head', 'leftUpperArm', 'rightUpperArm',
+    const s = ragdoll.scale || 1;
+
+    // Create the chess piece shell that surrounds the character
+    const pieceShell = this._createPieceShape(pieceType, s, pieceColor);
+    // Offset so the base sits at the character's feet
+    pieceShell.position.y = -0.5 * s;
+    ragdoll.meshes.torso.add(pieceShell);
+    this._pieceShells = this._pieceShells || [];
+    this._pieceShells.push(pieceShell);
+
+    // Make the character body semi-transparent inside the piece
+    const bodyParts = ['torso', 'leftUpperArm', 'rightUpperArm',
       'leftLowerArm', 'rightLowerArm', 'leftUpperLeg', 'rightUpperLeg',
       'leftLowerLeg', 'rightLowerLeg'];
     for (const part of bodyParts) {
       const mesh = ragdoll.meshes[part];
       if (mesh?.material) {
-        mesh.material.color.setHex(baseColor);
-        mesh.material.metalness = 0.2;
-        mesh.material.roughness = 0.4;
+        mesh.material.transparent = true;
+        mesh.material.opacity = 0.3;
       }
     }
-
-    // Add a circular base plate under the character (like a real chess piece)
-    const s = ragdoll.scale || 1;
-    const basePlate = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.45 * s, 0.5 * s, 0.1 * s, 16),
-      new THREE.MeshStandardMaterial({ color: baseColor, metalness: 0.3, roughness: 0.3 })
-    );
-    basePlate.position.y = -0.45 * s;
-    ragdoll.meshes.torso.add(basePlate);
-
-    // Add piece-specific accent to the head
-    const headMesh = ragdoll.meshes.head;
-    if (headMesh) {
-      headMesh.material.color.setHex(baseColor);
-      // Add colored band around the head
-      const band = new THREE.Mesh(
-        new THREE.TorusGeometry(0.3 * s, 0.04 * s, 8, 16),
-        new THREE.MeshStandardMaterial({ color: accentColor, metalness: 0.5 })
-      );
-      band.rotation.x = Math.PI / 2;
-      band.position.y = -0.05 * s;
-      headMesh.add(band);
-      this.meshes.push(band);
+    // Keep head visible (it pokes out the top)
+    if (ragdoll.meshes.head?.material) {
+      ragdoll.meshes.head.material.color.setHex(isWhiteTeam ? 0xffeecc : 0x443322);
     }
   }
 
@@ -271,14 +350,8 @@ export class ChessBoard extends Arena {
       const piece = available[Math.floor(Math.random() * available.length)];
       this.pieceAssignments.set(p, piece);
 
-      // Reskin the player to look like a chess piece
+      // Enclose the player in a chess piece shell
       this._applyPieceLook(p, piece);
-
-      // Create hat
-      const hat = this._createPieceHat(piece);
-      this.game.scene.add(hat);
-      this.pieceHats.set(p, hat);
-      this.meshes.push(hat);
 
       // Store movement constraint
       const dirs = PIECE_MOVEMENT[piece];
@@ -358,9 +431,9 @@ export class ChessBoard extends Arena {
         body.velocity.z *= 0.8;
       }
 
-      // Position piece hat above player's head
-      const hat = this.pieceHats.get(p);
-      if (hat) {
+      // (Piece shell is parented to torso mesh, moves automatically)
+      const _hat = this.pieceHats.get(p);
+      if (_hat) {
         const pos = p.ragdoll.getPosition();
         const s = p.ragdoll.scale || 1;
         hat.position.set(pos.x, pos.y + 1.3 * s, pos.z);
